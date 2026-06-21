@@ -3,11 +3,22 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
+const mongoose = require("mongoose");
+
 const config = require("./config/env");
+const connectDB = require("./config/db");
 const errorHandler = require("./middleware/errorHandler");
 const sanitize = require("./middleware/sanitize.middleware");
 const ApiResponse = require("./utils/apiResponse");
-const mongoose = require("mongoose");
+
+// Connect MongoDB
+connectDB()
+  .then(() => {
+    console.log("MongoDB Connected From App");
+  })
+  .catch((err) => {
+    console.error("MongoDB Connection Failed:", err);
+  });
 
 const app = express();
 
@@ -22,7 +33,7 @@ if (config.env === "development") {
   app.use(morgan("dev"));
 }
 
-// Rate limiting for auth routes (strict)
+// Rate limiting for auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
@@ -69,7 +80,7 @@ app.get("/db-test", async (req, res) => {
   });
 });
 
-// Import and use routes
+// Routes
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
 const repairCenterRoutes = require("./routes/repairCenter.routes");
@@ -88,8 +99,8 @@ app.use("/api/delegate", delegateRoutes);
 app.use("/api/inspection", inspectionRoutes);
 app.use("/api/price-offer", priceOfferRoutes);
 
-// 404 Route handler
-app.use((req, res, next) => {
+// 404 handler
+app.use((req, res) => {
   return ApiResponse.error(res, `Route not found: ${req.originalUrl}`, 404);
 });
 
