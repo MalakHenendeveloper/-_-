@@ -1,0 +1,663 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Mobile Maintenance Platform API",
+    "description": "REST API for mobile device maintenance platform with role-based access control",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Development Server"
+    },
+    {
+      "url": "https://api.mobilemaintenance.com",
+      "description": "Production Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Order": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "client": { "type": "string" },
+          "repairCenter": { "type": "string" },
+          "delegate": { "type": "string" },
+          "device": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["phone", "tablet", "laptop"]
+              },
+              "brand": { "type": "string" },
+              "model": { "type": "string" },
+              "problemType": { "type": "string" },
+              "problemDescription": { "type": "string" },
+              "images": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "pickupAddress": {
+            "type": "object",
+            "properties": {
+              "address": { "type": "string" },
+              "city": { "type": "string" },
+              "coordinates": {
+                "type": "object",
+                "properties": {
+                  "lat": { "type": "number" },
+                  "lng": { "type": "number" }
+                }
+              }
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "assigning_delegate",
+              "delegate_assigned",
+              "picked_up",
+              "at_center",
+              "inspecting",
+              "awaiting_approval",
+              "approved",
+              "repairing",
+              "repaired",
+              "returning",
+              "delivered",
+              "cancelled",
+              "rejected"
+            ]
+          },
+          "fees": {
+            "type": "object",
+            "properties": {
+              "inspection": { "type": "number" },
+              "delivery": { "type": "number" },
+              "repair": { "type": "number" },
+              "total": { "type": "number" }
+            }
+          },
+          "statusHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "status": { "type": "string" },
+                "note": { "type": "string" },
+                "updatedBy": { "type": "string" },
+                "updatedAt": { "type": "string", "format": "date-time" }
+              }
+            }
+          },
+          "rating": {
+            "type": "object",
+            "properties": {
+              "score": { "type": "number", "minimum": 1, "maximum": 5 },
+              "comment": { "type": "string" }
+            }
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": ["unpaid", "pending", "paid", "cancelled"]
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "name": { "type": "string" },
+          "phone": { "type": "string" },
+          "email": { "type": "string" },
+          "role": {
+            "type": "string",
+            "enum": ["admin", "client", "delegate", "center"]
+          },
+          "isVerified": { "type": "boolean" },
+          "isActive": { "type": "boolean" },
+          "isDeleted": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RepairCenter": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "name": { "type": "string" },
+          "owner": { "type": "string" },
+          "phone": { "type": "string" },
+          "email": { "type": "string" },
+          "address": { "type": "string" },
+          "city": { "type": "string" },
+          "coordinates": {
+            "type": "object",
+            "properties": {
+              "lat": { "type": "number" },
+              "lng": { "type": "number" }
+            }
+          },
+          "status": { "type": "string", "enum": ["active", "inactive"] },
+          "supportedBrands": { "type": "array", "items": { "type": "string" } },
+          "supportedDeviceTypes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "inspectionFee": { "type": "number" },
+          "rating": { "type": "number" },
+          "totalRatings": { "type": "number" },
+          "isDeleted": { "type": "boolean" }
+        }
+      },
+      "Inspection": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "order": { "type": "string" },
+          "repairCenter": { "type": "string" },
+          "technician": { "type": "string" },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "issue": { "type": "string" },
+                "severity": {
+                  "type": "string",
+                  "enum": ["minor", "major", "critical"]
+                }
+              }
+            }
+          },
+          "notes": { "type": "string" },
+          "images": { "type": "array", "items": { "type": "string" } },
+          "isDeleted": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PriceOffer": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "order": { "type": "string" },
+          "repairCenter": { "type": "string" },
+          "spareParts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "cost": { "type": "number" }
+              }
+            }
+          },
+          "laborCost": { "type": "number" },
+          "inspectionFee": { "type": "number" },
+          "deliveryFee": { "type": "number" },
+          "totalCost": { "type": "number" },
+          "estimatedDays": { "type": "number" },
+          "notes": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected"]
+          },
+          "isDeleted": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "message": { "type": "string" },
+          "statusCode": { "type": "integer" },
+          "data": { "type": "object" },
+          "errors": { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 6 }
+                },
+                "required": ["name", "phone", "email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or user already exists"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": { "type": "string" },
+                  "password": { "type": "string" }
+                },
+                "required": ["phone", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "tags": ["Client - Orders"],
+        "summary": "Create a new order",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device": {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string" },
+                      "brand": { "type": "string" },
+                      "model": { "type": "string" },
+                      "problemType": { "type": "string" },
+                      "problemDescription": { "type": "string" }
+                    },
+                    "required": ["type", "brand", "model", "problemType"]
+                  },
+                  "pickupAddress": {
+                    "type": "object",
+                    "properties": {
+                      "address": { "type": "string" },
+                      "city": { "type": "string" },
+                      "coordinates": {
+                        "type": "object",
+                        "properties": {
+                          "lat": { "type": "number" },
+                          "lng": { "type": "number" }
+                        }
+                      }
+                    },
+                    "required": ["address", "city"]
+                  },
+                  "repairCenter": { "type": "string" }
+                },
+                "required": ["device", "pickupAddress"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or invalid repair center"
+          }
+        }
+      },
+      "get": {
+        "tags": ["Client - Orders"],
+        "summary": "Get client's orders",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orders retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/{orderId}": {
+      "get": {
+        "tags": ["Client - Orders"],
+        "summary": "Get order details",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details retrieved",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found"
+          }
+        }
+      }
+    },
+    "/api/orders/{orderId}/rate": {
+      "put": {
+        "tags": ["Client - Orders"],
+        "summary": "Rate an order",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "score": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "comment": { "type": "string" }
+                },
+                "required": ["score"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order rated successfully"
+          },
+          "400": {
+            "description": "Order status not delivered or already rated"
+          }
+        }
+      }
+    },
+    "/api/centers/dashboard/orders/{orderId}/inspection": {
+      "post": {
+        "tags": ["Repair Center"],
+        "summary": "Create inspection report",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "technician": { "type": "string" },
+                  "findings": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "issue": { "type": "string" },
+                        "severity": {
+                          "type": "string",
+                          "enum": ["minor", "major", "critical"]
+                        }
+                      }
+                    }
+                  },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Inspection report created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid order status for inspection"
+          }
+        }
+      }
+    },
+    "/api/centers/dashboard/orders/{orderId}/price-offer": {
+      "post": {
+        "tags": ["Repair Center"],
+        "summary": "Send price offer",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "spareParts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string" },
+                        "cost": { "type": "number" }
+                      }
+                    }
+                  },
+                  "laborCost": { "type": "number" },
+                  "inspectionFee": { "type": "number" },
+                  "deliveryFee": { "type": "number" },
+                  "estimatedDays": { "type": "number" },
+                  "notes": { "type": "string" }
+                },
+                "required": ["laborCost"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Price offer sent successfully"
+          },
+          "400": {
+            "description": "Invalid order status for price offer"
+          }
+        }
+      }
+    },
+    "/api/admin/centers": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Create repair center with owner",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ownerName": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 6 },
+                  "name": { "type": "string" },
+                  "address": { "type": "string" },
+                  "city": { "type": "string" },
+                  "coordinates": {
+                    "type": "object",
+                    "properties": {
+                      "lat": { "type": "number" },
+                      "lng": { "type": "number" }
+                    }
+                  },
+                  "supportedBrands": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "supportedDeviceTypes": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "inspectionFee": { "type": "number" }
+                },
+                "required": [
+                  "ownerName",
+                  "phone",
+                  "email",
+                  "password",
+                  "name",
+                  "address"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Repair center and owner created successfully"
+          },
+          "400": {
+            "description": "Phone or email already registered"
+          }
+        }
+      }
+    },
+    "/api/admin/orders/{orderId}/assign-delegate": {
+      "put": {
+        "tags": ["Admin"],
+        "summary": "Assign delegate to order",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "delegateId": { "type": "string" }
+                },
+                "required": ["delegateId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Delegate assigned successfully"
+          },
+          "400": {
+            "description": "Invalid order status for delegate assignment"
+          },
+          "404": {
+            "description": "Delegate not found or not active"
+          }
+        }
+      }
+    }
+  }
+}

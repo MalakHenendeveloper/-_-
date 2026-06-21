@@ -1,0 +1,902 @@
+{
+  "info": {
+    "name": "Mobile Maintenance Platform API",
+    "description": "Complete REST API for mobile device maintenance platform with role-based endpoints",
+    "version": "2.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12345678"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Client",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"أحمد محمد\",\n  \"phone\": \"966501234600\",\n  \"email\": \"client@example.com\",\n  \"password\": \"Client@123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"966501234567\",\n  \"password\": \"Admin@123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"966501234567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/send-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "send-otp"]
+            }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"966501234567\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/verify-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "verify-otp"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "refresh-token"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Client - Order Lifecycle",
+      "description": "Complete order workflow from creation to rating",
+      "item": [
+        {
+          "name": "1. List Available Repair Centers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/centers?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "centers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Create Order (No Center Selected)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device\": {\n    \"type\": \"phone\",\n    \"brand\": \"Apple\",\n    \"model\": \"iPhone 14\",\n    \"problemType\": \"screen\",\n    \"problemDescription\": \"الشاشة مكسورة\"\n  },\n  \"pickupAddress\": {\n    \"address\": \"شارع التحرير، الرياض\",\n    \"city\": \"Riyadh\",\n    \"coordinates\": {\n      \"lat\": 24.7136,\n      \"lng\": 46.6753\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          }
+        },
+        {
+          "name": "3. Create Order (With Center Selected)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device\": {\n    \"type\": \"phone\",\n    \"brand\": \"Samsung\",\n    \"model\": \"Galaxy S23\",\n    \"problemType\": \"battery\",\n    \"problemDescription\": \"البطارية تفرغ بسرعة\"\n  },\n  \"pickupAddress\": {\n    \"address\": \"حي السفارات، الرياض\",\n    \"city\": \"Riyadh\",\n    \"coordinates\": {\n      \"lat\": 24.7289,\n      \"lng\": 46.6748\n    }\n  },\n  \"repairCenter\": \"{{centerId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          }
+        },
+        {
+          "name": "4. Get My Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Get Order Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "6. Track Order Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/tracking",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}", "tracking"]
+            }
+          }
+        },
+        {
+          "name": "7. View Inspection Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/inspection/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "inspection", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "8. Approve Price Offer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/approve-offer",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}", "approve-offer"]
+            }
+          }
+        },
+        {
+          "name": "9. Rate Order (After Delivery)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": 5,\n  \"comment\": \"خدمة ممتازة جداً، موصى به\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/rate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}", "rate"]
+            }
+          }
+        },
+        {
+          "name": "10. Cancel Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}", "cancel"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delegate - Pickup & Delivery",
+      "item": [
+        {
+          "name": "Get Assigned Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/delegate/orders?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "delegate", "orders"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pickup Order from Client",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"تم استلام الجهاز من العميل بحالة جيدة\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/delegate/orders/{{orderId}}/pickup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "delegate", "orders", "{{orderId}}", "pickup"]
+            }
+          }
+        },
+        {
+          "name": "Deliver Order to Center",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"تم تسليم الجهاز للمركز\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/delegate/orders/{{orderId}}/deliver-to-center",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "delegate",
+                "orders",
+                "{{orderId}}",
+                "deliver-to-center"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Return Order to Client",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"تم استلام الجهاز المُصلح من المركز وتسليمه للعميل\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/delegate/orders/{{orderId}}/return",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "delegate", "orders", "{{orderId}}", "return"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Repair Center - Dashboard",
+      "item": [
+        {
+          "name": "Get Center Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/centers/dashboard/orders?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "centers", "dashboard", "orders"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Order Details (Center)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/centers/dashboard/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "centers", "dashboard", "orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Inspection Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"technician\": \"فني متخصص\",\n  \"findings\": [\n    {\n      \"issue\": \"الشاشة مكسورة\",\n      \"severity\": \"major\"\n    },\n    {\n      \"issue\": \"تصدع صغير في الهيكل\",\n      \"severity\": \"minor\"\n    }\n  ],\n  \"notes\": \"الجهاز يحتاج لاستبدال الشاشة والهيكل\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/centers/dashboard/orders/{{orderId}}/inspection",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "centers",
+                "dashboard",
+                "orders",
+                "{{orderId}}",
+                "inspection"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send Price Offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"spareParts\": [\n    {\n      \"name\": \"شاشة iPhone 14\",\n      \"cost\": 250\n    },\n    {\n      \"name\": \"مادة لاصقة و OCA\",\n      \"cost\": 30\n    }\n  ],\n  \"laborCost\": 100,\n  \"inspectionFee\": 50,\n  \"deliveryFee\": 30,\n  \"estimatedDays\": 2,\n  \"notes\": \"عرض السعر شامل كل شيء\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/centers/dashboard/orders/{{orderId}}/price-offer",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "centers",
+                "dashboard",
+                "orders",
+                "{{orderId}}",
+                "price-offer"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"repairing\",\n  \"note\": \"بدأنا في الإصلاح\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/centers/dashboard/orders/{{orderId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "centers",
+                "dashboard",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Center Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/centers/dashboard/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "centers", "dashboard", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update Center Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supportedBrands\": [\"Apple\", \"Samsung\", \"Huawei\", \"Xiaomi\", \"Oppo\"],\n  \"inspectionFee\": 50,\n  \"supportedDeviceTypes\": [\"phone\", \"tablet\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/centers/dashboard/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "centers", "dashboard", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get Center Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/centers/dashboard/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "centers", "dashboard", "stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Management",
+      "item": [
+        {
+          "name": "Create New Repair Center",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerName\": \"محمد أحمد الشريف\",\n  \"phone\": \"966501234595\",\n  \"email\": \"center4@example.com\",\n  \"password\": \"Center@123456\",\n  \"name\": \"مركز الصيانة الجديد\",\n  \"address\": \"حي الروضة، الرياض\",\n  \"city\": \"Riyadh\",\n  \"coordinates\": {\n    \"lat\": 24.7549,\n    \"lng\": 46.6989\n  },\n  \"supportedBrands\": [\"Apple\", \"Samsung\", \"Huawei\"],\n  \"supportedDeviceTypes\": [\"phone\", \"tablet\"],\n  \"inspectionFee\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/centers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "centers"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users?page=1&limit=20&role=client",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "role",
+                  "value": "client"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update User Role/Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true,\n  \"isVerified\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Assign Delegate to Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delegateId\": \"{{delegateId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/orders/{{orderId}}/assign-delegate",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "admin",
+                "orders",
+                "{{orderId}}",
+                "assign-delegate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete User (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get All Orders (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/orders?page=1&limit=20&status=delivered",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "orders"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "delivered"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "delegateId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "centerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

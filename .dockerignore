@@ -1,0 +1,19 @@
+# Docker Ignore
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env.example
+.env.local
+.env.*.local
+.editorconfig
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.log
+dist
+coverage
+.nyc_output
+tests/fixtures
