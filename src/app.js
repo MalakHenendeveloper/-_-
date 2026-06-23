@@ -98,7 +98,15 @@ app.use("/api/admin", sensitiveOperationsLimiter, adminRoutes);
 app.use("/api/delegate", delegateRoutes);
 app.use("/api/inspection", inspectionRoutes);
 app.use("/api/price-offer", priceOfferRoutes);
-
+//
+//
+app.get("/env-test", (req, res) => {
+  res.json({
+    mongoExists: !!config.mongoose.url,
+    mongoPrefix: config.mongoose.url?.substring(0, 15),
+    mongoLength: config.mongoose.url?.length,
+  });
+});
 // 404 handler
 app.use((req, res) => {
   return ApiResponse.error(res, `Route not found: ${req.originalUrl}`, 404);
@@ -106,13 +114,5 @@ app.use((req, res) => {
 
 // Global Error Handler
 app.use(errorHandler);
-//
-app.get("/env-test", (req, res) => {
-  res.json({
-    mongoExists: !!config.mongoose.url,
-    mongoLength: config.mongoose.url
-      ? config.mongoose.url.length
-      : 0,
-  });
-});
+
 module.exports = app;
