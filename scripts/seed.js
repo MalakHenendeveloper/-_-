@@ -375,8 +375,9 @@ const seedDatabase = async () => {
           coordinates: { lat: 24.7408, lng: 46.7085 },
         },
         fees: { inspection: 45, delivery: 0, repair: 200, total: 245 },
+        // Order 6
         status: "approved",
-        paymentStatus: "pending",
+        paymentStatus: "unpaid",
       },
       // Order 7: repairing
       {
@@ -397,8 +398,9 @@ const seedDatabase = async () => {
           coordinates: { lat: 24.7289, lng: 46.6748 },
         },
         fees: { inspection: 50, delivery: 50, repair: 500, total: 600 },
+        // Order 7
         status: "repairing",
-        paymentStatus: "pending",
+        paymentStatus: "unpaid",
       },
       // Order 8: returning
       {
@@ -463,8 +465,9 @@ const seedDatabase = async () => {
           coordinates: { lat: 24.7289, lng: 46.6748 },
         },
         fees: { inspection: 50, delivery: 0, repair: 0, total: 50 },
+        // Order 10
         status: "cancelled",
-        paymentStatus: "cancelled",
+        paymentStatus: "unpaid",
       },
     ]);
     console.log("✅ 10 Orders created (covering all statuses)");

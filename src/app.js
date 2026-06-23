@@ -106,5 +106,13 @@ app.use((req, res) => {
 
 // Global Error Handler
 app.use(errorHandler);
-
+//
+app.get("/env-test", (req, res) => {
+  res.json({
+    mongoExists: !!config.mongoose.url,
+    mongoLength: config.mongoose.url
+      ? config.mongoose.url.length
+      : 0,
+  });
+});
 module.exports = app;
