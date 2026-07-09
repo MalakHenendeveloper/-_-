@@ -92,47 +92,78 @@ exports.updateUserStatus = async (req, res, next) => {
 // POST /centers - Create repair center with owner (unified flow)
 exports.createCenter = async (req, res, next) => {
   try {
+    // Parse FormData JSON fields
+    const parsedBody = { ...req.body };
+
+    if (parsedBody.coordinates && typeof parsedBody.coordinates === "string") {
+      parsedBody.coordinates = JSON.parse(parsedBody.coordinates);
+    }
+
+    if (
+      parsedBody.supportedBrands &&
+      typeof parsedBody.supportedBrands === "string"
+    ) {
+      parsedBody.supportedBrands = JSON.parse(parsedBody.supportedBrands);
+    }
+
+    if (
+      parsedBody.supportedDeviceTypes &&
+      typeof parsedBody.supportedDeviceTypes === "string"
+    ) {
+      parsedBody.supportedDeviceTypes = JSON.parse(
+        parsedBody.supportedDeviceTypes,
+      );
+    }
+
     const schema = Joi.object({
       ownerName: Joi.string().min(2).required(),
       phone: Joi.string().required(),
       email: Joi.string().email().required(),
       password: Joi.string().min(6).required(),
+
       name: Joi.string().required(),
       address: Joi.string().required(),
       city: Joi.string().optional(),
+
       coordinates: Joi.object({
         lat: Joi.number().required(),
         lng: Joi.number().required(),
       }).optional(),
+
       supportedBrands: Joi.array().items(Joi.string()).default([]),
+
       supportedDeviceTypes: Joi.array().items(Joi.string()).default([]),
+
       inspectionFee: Joi.number().min(0).default(0),
     });
 
-    const body = validate(schema, req.body);
+    const body = validate(schema, parsedBody);
 
-    // Check if phone or email already exists
+    // Check duplicate phone
     const existingPhone = await User.findOne({
       phone: body.phone,
       isDeleted: { $ne: true },
     });
+
     if (existingPhone) {
       const err = new Error("رقم الهاتف مسجل بالفعل");
       err.statusCode = 400;
       return next(err);
     }
 
+    // Check duplicate email
     const existingEmail = await User.findOne({
       email: body.email,
       isDeleted: { $ne: true },
     });
+
     if (existingEmail) {
       const err = new Error("البريد الإلكتروني مسجل بالفعل");
       err.statusCode = 400;
       return next(err);
     }
 
-    // Create owner user with role="center" (Step 1)
+    // Create owner account
     const owner = new User({
       name: body.ownerName,
       phone: body.phone,
@@ -142,36 +173,48 @@ exports.createCenter = async (req, res, next) => {
       isVerified: true,
       isActive: true,
     });
+
     await owner.save();
 
     try {
-      // Create repair center linked to owner (Step 2)
+      // Create repair center
       const center = new RepairCenter({
         name: body.name,
         owner: owner._id,
         phone: body.phone,
         email: body.email,
+
+        logo: req.file ? req.file.path || req.file.filename : null,
+
         address: body.address,
         city: body.city,
         coordinates: body.coordinates,
+
         supportedBrands: body.supportedBrands,
         supportedDeviceTypes: body.supportedDeviceTypes,
+
         inspectionFee: body.inspectionFee,
+
         status: "active",
       });
+
       await center.save();
 
       return ApiResponse.success(
         res,
         "تم إنشاء مركز الصيانة ومالك المركز بنجاح",
         {
-          user: { id: owner._id, name: owner.name, email: owner.email },
+          user: {
+            id: owner._id,
+            name: owner.name,
+            email: owner.email,
+          },
           center,
         },
         201,
       );
     } catch (centerError) {
-      // Rollback: Delete the user that was just created if center creation fails
+      // Rollback if center creation fails
       await User.deleteOne({ _id: owner._id });
       throw centerError;
     }
@@ -179,7 +222,6 @@ exports.createCenter = async (req, res, next) => {
     next(error);
   }
 };
-
 // PUT /centers/:id/status - Approve/suspend center
 exports.updateCenterStatus = async (req, res, next) => {
   try {
