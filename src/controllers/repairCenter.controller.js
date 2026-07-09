@@ -3,6 +3,7 @@ const RepairCenter = require("../models/RepairCenter");
 const Order = require("../models/Order");
 const ApiResponse = require("../utils/apiResponse");
 const validate = require("../utils/validator");
+const CenterService = require("../models/CenterService");
 
 // GET / - Public - List active repair centers with pagination
 exports.getActiveCenters = async (req, res, next) => {
@@ -181,6 +182,49 @@ exports.getCenterOrderById = async (req, res, next) => {
     }
 
     return ApiResponse.success(res, "تفاصيل الطلب الخاص بالمركز", { order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+/**
+ * @desc    Get services for specific repair center
+ * @route   GET /api/centers/:id/services
+ * @access  Public
+ */
+exports.getCenterServices = async (req, res, next) => {
+  try {
+    const center = await RepairCenter.findOne({
+      _id: req.params.id,
+      isDeleted: { $ne: true },
+    }).select("name logo rating totalRatings");
+
+    if (!center) {
+      const err = new Error("مركز الصيانة غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    const services = await CenterService.find({
+      center: center._id,
+      isDeleted: { $ne: true },
+      isAvailable: true,
+    })
+      .select(
+        "serviceName description price estimatedTime warranty isAvailable",
+      )
+      .sort({ createdAt: -1 });
+
+    return ApiResponse.success(
+      res,
+      "خدمات مركز الصيانة",
+      {
+        center,
+        total: services.length,
+        services,
+      },
+    );
   } catch (error) {
     next(error);
   }

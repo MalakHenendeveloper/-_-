@@ -55,6 +55,7 @@ router.put(
   upload.single("logo"),
   repairCenterController.updateCenterProfile,
 );
+router.get("/:id/services", repairCenterController.getCenterServices);
 router.get("/:id", repairCenterController.getCenterById);
 
 module.exports = router;
