@@ -73,11 +73,30 @@ app.get("/health", (req, res) => {
 });
 
 // MongoDB test endpoint
+// app.get("/db-test", async (req, res) => {
+//   return res.json({
+//     readyState: mongoose.connection.readyState,
+//     mongoConnected: mongoose.connection.readyState === 1,
+//   });
+// });
+
 app.get("/db-test", async (req, res) => {
-  return res.json({
-    readyState: mongoose.connection.readyState,
-    mongoConnected: mongoose.connection.readyState === 1,
-  });
+  try {
+    await connectDB();
+
+    return res.json({
+      readyState: mongoose.connection.readyState,
+      mongoConnected: mongoose.connection.readyState === 1,
+      host: mongoose.connection.host,
+      dbName: mongoose.connection.name,
+    });
+  } catch (e) {
+    return res.status(500).json({
+      readyState: mongoose.connection.readyState,
+      error: e.message,
+      stack: e.stack,
+    });
+  }
 });
 
 // Routes
@@ -103,7 +122,7 @@ app.use("/api/price-offer", priceOfferRoutes);
 app.get("/env-test", (req, res) => {
   res.json({
     mongoExists: !!config.mongoose.url,
-    mongoPrefix: config.mongoose.url?.substring(0, 15),
+    mongoPrefix: config.mongoose.url?.substring(0, 200),
     mongoLength: config.mongoose.url?.length,
   });
 });
