@@ -108,7 +108,7 @@ const adminRoutes = require("./routes/admin.routes");
 const delegateRoutes = require("./routes/delegate.routes");
 const inspectionRoutes = require("./routes/inspection.routes");
 const priceOfferRoutes = require("./routes/priceOffer.routes");
-
+const centerServiceRoutes = require("./routes/centerService.routes");
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/centers", repairCenterRoutes);
@@ -117,6 +117,7 @@ app.use("/api/admin", sensitiveOperationsLimiter, adminRoutes);
 app.use("/api/delegate", delegateRoutes);
 app.use("/api/inspection", inspectionRoutes);
 app.use("/api/price-offer", priceOfferRoutes);
+app.use("/api/center/services", centerServiceRoutes);
 //
 //
 app.get("/env-test", (req, res) => {
