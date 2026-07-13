@@ -432,6 +432,172 @@ exports.logout = async (req, res, next) => {
  * @route   POST /api/auth/register-delegate
  * @access  Public
  */
+// exports.registerDelegate = async (req, res, next) => {
+//   try {
+//     const schema = Joi.object({
+//       name: Joi.string().required(),
+//       phone: Joi.string().required(),
+//       email: Joi.string().email().optional().allow(null, ""),
+//       password: Joi.string().min(6).required(),
+//     });
+
+//     const body = validate(schema, req.body);
+
+//     // 👇 حطهم هنا
+//     console.log("========== FILES ==========");
+//     console.dir(req.files, { depth: null });
+//     console.log("===========================");
+
+//     // Required Images
+//     if (
+//       !req.files?.nationalIdFront ||
+//       !req.files?.nationalIdBack ||
+//       !req.files?.drivingLicense ||
+//       !req.files?.motorcycleLicense
+//     ) {
+//       return ApiResponse.error(
+//         res,
+//         "يجب رفع البطاقة الأمامية والخلفية ورخصة القيادة ورخصة الموتوسيكل",
+//         400,
+//       );
+//     }
+
+//     // Check if there is already an approved user
+//     const existingUser = await User.findOne({
+//       phone: body.phone,
+//       isDeleted: { $ne: true },
+//     });
+
+//     if (existingUser) {
+//       return ApiResponse.error(res, "رقم الهاتف مستخدم بالفعل", 400);
+//     }
+
+//     // Search previous application by phone
+//     let application = await DelegateApplication.findOne({
+//       phone: body.phone,
+//     });
+
+//     // Still pending
+//     if (application && application.status === "pending") {
+//       return ApiResponse.error(res, "لديك طلب قيد المراجعة بالفعل", 400);
+//     }
+
+//     // Rejected -> Update same application
+//     if (application && application.status === "rejected") {
+//       // Delete old images from Cloudinary
+//       const oldImages = [
+//         application.nationalIdFront,
+//         application.nationalIdBack,
+//         application.drivingLicense,
+//         application.motorcycleLicense,
+//       ];
+
+//       for (const image of oldImages) {
+//         if (image?.publicId) {
+//           try {
+//             await deleteImage(image.publicId);
+//           } catch (err) {
+//             console.error("Cloudinary delete error:", err.message);
+//           }
+//         }
+//       }
+
+//       application.name = body.name;
+//       application.email = body.email;
+//       application.password = body.password;
+
+//       application.nationalIdFront = {
+//         url: req.files.nationalIdFront[0].path,
+//         publicId:
+//           req.files.nationalIdFront[0].filename ||
+//           req.files.nationalIdFront[0].public_id,
+//       };
+
+//       application.nationalIdBack = {
+//         url: req.files.nationalIdBack[0].path,
+//         publicId:
+//           req.files.nationalIdBack[0].filename ||
+//           req.files.nationalIdBack[0].public_id,
+//       };
+
+//       application.drivingLicense = {
+//         url: req.files.drivingLicense[0].path,
+//         publicId:
+//           req.files.drivingLicense[0].filename ||
+//           req.files.drivingLicense[0].public_id,
+//       };
+
+//       application.motorcycleLicense = {
+//         url: req.files.motorcycleLicense[0].path,
+//         publicId:
+//           req.files.motorcycleLicense[0].filename ||
+//           req.files.motorcycleLicense[0].public_id,
+//       };
+
+//       application.status = "pending";
+//       application.rejectReason = null;
+//       application.reviewedAt = null;
+//       application.reviewedBy = null;
+//       application.rejectedAt = null;
+
+//       await application.save();
+
+//       return ApiResponse.success(
+//         res,
+//         "تم إعادة إرسال طلب الانضمام بنجاح",
+//         { application },
+//         200,
+//       );
+//     }
+
+//     // Create new application
+//     application = new DelegateApplication({
+//       name: body.name,
+//       phone: body.phone,
+//       email: body.email,
+//       password: body.password,
+
+//       nationalIdFront: {
+//         url: req.files.nationalIdFront[0].path,
+//         publicId:
+//           req.files.nationalIdFront[0].filename ||
+//           req.files.nationalIdFront[0].public_id,
+//       },
+
+//       nationalIdBack: {
+//         url: req.files.nationalIdBack[0].path,
+//         publicId:
+//           req.files.nationalIdBack[0].filename ||
+//           req.files.nationalIdBack[0].public_id,
+//       },
+
+//       drivingLicense: {
+//         url: req.files.drivingLicense[0].path,
+//         publicId:
+//           req.files.drivingLicense[0].filename ||
+//           req.files.drivingLicense[0].public_id,
+//       },
+
+//       motorcycleLicense: {
+//         url: req.files.motorcycleLicense[0].path,
+//         publicId:
+//           req.files.motorcycleLicense[0].filename ||
+//           req.files.motorcycleLicense[0].public_id,
+//       },
+//     });
+
+//     await application.save();
+
+//     return ApiResponse.success(
+//       res,
+//       "تم إرسال طلب الانضمام بنجاح، وسيتم مراجعته من الإدارة",
+//       { application },
+//       201,
+//     );
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 exports.registerDelegate = async (req, res, next) => {
   try {
     const schema = Joi.object({
@@ -439,28 +605,29 @@ exports.registerDelegate = async (req, res, next) => {
       phone: Joi.string().required(),
       email: Joi.string().email().optional().allow(null, ""),
       password: Joi.string().min(6).required(),
+
+      nationalIdFront: Joi.object({
+        url: Joi.string().required(),
+        publicId: Joi.string().required(),
+      }).required(),
+
+      nationalIdBack: Joi.object({
+        url: Joi.string().required(),
+        publicId: Joi.string().required(),
+      }).required(),
+
+      drivingLicense: Joi.object({
+        url: Joi.string().required(),
+        publicId: Joi.string().required(),
+      }).required(),
+
+      motorcycleLicense: Joi.object({
+        url: Joi.string().required(),
+        publicId: Joi.string().required(),
+      }).required(),
     });
 
     const body = validate(schema, req.body);
-
-    // 👇 حطهم هنا
-    console.log("========== FILES ==========");
-    console.dir(req.files, { depth: null });
-    console.log("===========================");
-
-    // Required Images
-    if (
-      !req.files?.nationalIdFront ||
-      !req.files?.nationalIdBack ||
-      !req.files?.drivingLicense ||
-      !req.files?.motorcycleLicense
-    ) {
-      return ApiResponse.error(
-        res,
-        "يجب رفع البطاقة الأمامية والخلفية ورخصة القيادة ورخصة الموتوسيكل",
-        400,
-      );
-    }
 
     // Check if there is already an approved user
     const existingUser = await User.findOne({
@@ -506,33 +673,10 @@ exports.registerDelegate = async (req, res, next) => {
       application.email = body.email;
       application.password = body.password;
 
-      application.nationalIdFront = {
-        url: req.files.nationalIdFront[0].path,
-        publicId:
-          req.files.nationalIdFront[0].filename ||
-          req.files.nationalIdFront[0].public_id,
-      };
-
-      application.nationalIdBack = {
-        url: req.files.nationalIdBack[0].path,
-        publicId:
-          req.files.nationalIdBack[0].filename ||
-          req.files.nationalIdBack[0].public_id,
-      };
-
-      application.drivingLicense = {
-        url: req.files.drivingLicense[0].path,
-        publicId:
-          req.files.drivingLicense[0].filename ||
-          req.files.drivingLicense[0].public_id,
-      };
-
-      application.motorcycleLicense = {
-        url: req.files.motorcycleLicense[0].path,
-        publicId:
-          req.files.motorcycleLicense[0].filename ||
-          req.files.motorcycleLicense[0].public_id,
-      };
+      application.nationalIdFront = body.nationalIdFront;
+      application.nationalIdBack = body.nationalIdBack;
+      application.drivingLicense = body.drivingLicense;
+      application.motorcycleLicense = body.motorcycleLicense;
 
       application.status = "pending";
       application.rejectReason = null;
@@ -557,33 +701,10 @@ exports.registerDelegate = async (req, res, next) => {
       email: body.email,
       password: body.password,
 
-      nationalIdFront: {
-        url: req.files.nationalIdFront[0].path,
-        publicId:
-          req.files.nationalIdFront[0].filename ||
-          req.files.nationalIdFront[0].public_id,
-      },
-
-      nationalIdBack: {
-        url: req.files.nationalIdBack[0].path,
-        publicId:
-          req.files.nationalIdBack[0].filename ||
-          req.files.nationalIdBack[0].public_id,
-      },
-
-      drivingLicense: {
-        url: req.files.drivingLicense[0].path,
-        publicId:
-          req.files.drivingLicense[0].filename ||
-          req.files.drivingLicense[0].public_id,
-      },
-
-      motorcycleLicense: {
-        url: req.files.motorcycleLicense[0].path,
-        publicId:
-          req.files.motorcycleLicense[0].filename ||
-          req.files.motorcycleLicense[0].public_id,
-      },
+      nationalIdFront: body.nationalIdFront,
+      nationalIdBack: body.nationalIdBack,
+      drivingLicense: body.drivingLicense,
+      motorcycleLicense: body.motorcycleLicense,
     });
 
     await application.save();
@@ -598,7 +719,6 @@ exports.registerDelegate = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * @desc    Delegate Login
  * @route   POST /api/auth/delegate/login

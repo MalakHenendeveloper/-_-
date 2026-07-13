@@ -7,12 +7,12 @@ const upload = require("../middleware/upload.middleware");
 router.post("/register", authController.register);
 router.post(
   "/register-delegate",
-  upload.fields([
-    { name: "nationalIdFront", maxCount: 1 },
-    { name: "nationalIdBack", maxCount: 1 },
-    { name: "drivingLicense", maxCount: 1 },
-    { name: "motorcycleLicense", maxCount: 1 },
-  ]),
+  //   upload.fields([
+  //     { name: "nationalIdFront", maxCount: 1 },
+  //     { name: "nationalIdBack", maxCount: 1 },
+  //     { name: "drivingLicense", maxCount: 1 },
+  //     { name: "motorcycleLicense", maxCount: 1 },
+  //   ]),
   authController.registerDelegate,
 );
 router.post("/login", authController.login);
