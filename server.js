@@ -4,6 +4,7 @@ const connectDB = require('./src/config/db');
 
 // Connect to Database
 connectDB();
+require("./src/jobs/delegateCleanup.job");
 
 const PORT = config.port || 5000;
 

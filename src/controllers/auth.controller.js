@@ -2,6 +2,7 @@ const Joi = require("joi");
 const jwt = require("jsonwebtoken");
 const config = require("../config/env");
 const User = require("../models/User");
+const DelegateApplication = require("../models/DelegateApplication");
 const OTP = require("../models/OTP");
 const generateOTP = require("../utils/generateOTP");
 const sendSMS = require("../utils/sendSMS");
@@ -126,6 +127,12 @@ exports.login = async (req, res, next) => {
     if (!user) {
       const err = new Error("بيانات الدخول غير صحيحة");
       err.statusCode = 401;
+      return next(err);
+    }
+    // Delegate must use delegate login endpoint
+    if (user.role === "delegate") {
+      const err = new Error("يرجى تسجيل الدخول من خلال تطبيق المندوب");
+      err.statusCode = 403;
       return next(err);
     }
 
@@ -268,9 +275,433 @@ exports.logout = async (req, res, next) => {
     next(error);
   }
 };
+/**
+ * @desc    Register Delegate Application
+ * @route   POST /api/auth/register-delegate
+ * @access  Public
+ */
+// exports.registerDelegate = async (req, res, next) => {
+//   try {
+//     const schema = Joi.object({
+//       name: Joi.string().required(),
+//       phone: Joi.string().required(),
+//       email: Joi.string().email().optional(),
+//       password: Joi.string().min(6).required(),
+//     });
+
+//     const body = validate(schema, req.body);
+
+//     // Required Images
+//     if (
+//       !req.files?.nationalIdFront ||
+//       !req.files?.nationalIdBack ||
+//       !req.files?.drivingLicense ||
+//       !req.files?.motorcycleLicense
+//     ) {
+//       return ApiResponse.error(
+//         res,
+//         "يجب رفع البطاقة الأمامية والخلفية ورخصة القيادة ورخصة الموتوسيكل",
+//         400,
+//       );
+//     }
+
+//     // User already exists
+//     const existingUser = await User.findOne({
+//       $or: [
+//         { phone: body.phone },
+//         ...(body.email ? [{ email: body.email }] : []),
+//       ],
+//       isDeleted: { $ne: true },
+//     });
+
+//     if (existingUser) {
+//       return ApiResponse.error(
+//         res,
+//         "رقم الهاتف أو البريد الإلكتروني مستخدم بالفعل",
+//         400,
+//       );
+//     }
+
+//     // Previous application
+//     let application = await DelegateApplication.findOne({
+//       phone: body.phone,
+//     });
+
+//     // Pending request
+//     if (application && application.status === "pending") {
+//       return ApiResponse.error(res, "لديك طلب قيد المراجعة بالفعل", 400);
+//     }
+
+//     // Rejected request -> Update existing application
+//     if (application && application.status === "rejected") {
+//       application.name = body.name;
+//       application.email = body.email;
+//       application.password = body.password;
+
+//       application.nationalIdFront = {
+//         url: req.files.nationalIdFront[0].path,
+//         publicId:
+//           req.files.nationalIdFront[0].filename ||
+//           req.files.nationalIdFront[0].public_id,
+//       };
+
+//       application.nationalIdBack = {
+//         url: req.files.nationalIdBack[0].path,
+//         publicId:
+//           req.files.nationalIdBack[0].filename ||
+//           req.files.nationalIdBack[0].public_id,
+//       };
+
+//       application.drivingLicense = {
+//         url: req.files.drivingLicense[0].path,
+//         publicId:
+//           req.files.drivingLicense[0].filename ||
+//           req.files.drivingLicense[0].public_id,
+//       };
+
+//       application.motorcycleLicense = {
+//         url: req.files.motorcycleLicense[0].path,
+//         publicId:
+//           req.files.motorcycleLicense[0].filename ||
+//           req.files.motorcycleLicense[0].public_id,
+//       };
+
+//       application.status = "pending";
+//       application.rejectReason = null;
+//       application.reviewedAt = null;
+//       application.reviewedBy = null;
+//       application.rejectedAt = null;
+
+//       await application.save();
+
+//       return ApiResponse.success(res, "تم إعادة إرسال الطلب بنجاح", {}, 200);
+//     }
+
+//     application = new DelegateApplication({
+//       name: body.name,
+//       phone: body.phone,
+//       email: body.email,
+//       password: body.password,
+//       nationalIdFront: {
+//         url: req.files.nationalIdFront[0].path,
+//         publicId:
+//           req.files.nationalIdFront[0].filename ||
+//           req.files.nationalIdFront[0].public_id,
+//       },
+
+//       nationalIdBack: {
+//         url: req.files.nationalIdBack[0].path,
+//         publicId:
+//           req.files.nationalIdBack[0].filename ||
+//           req.files.nationalIdBack[0].public_id,
+//       },
+
+//       drivingLicense: {
+//         url: req.files.drivingLicense[0].path,
+//         publicId:
+//           req.files.drivingLicense[0].filename ||
+//           req.files.drivingLicense[0].public_id,
+//       },
+
+//       motorcycleLicense: {
+//         url: req.files.motorcycleLicense[0].path,
+//         publicId:
+//           req.files.motorcycleLicense[0].filename ||
+//           req.files.motorcycleLicense[0].public_id,
+//       },
+//     });
+
+//     await application.save();
+
+//     return ApiResponse.success(
+//       res,
+//       "تم إرسال طلب الانضمام بنجاح، وسيتم مراجعته من الإدارة",
+//       {},
+//       201,
+//     );
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 // Send OTP for password reset only
 // ✅ REFACTOR: Registration OTP removed - this is only for reset_password flow
+
+/**
+ * @desc    Register Delegate Application
+ * @route   POST /api/auth/register-delegate
+ * @access  Public
+ */
+exports.registerDelegate = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      name: Joi.string().required(),
+      phone: Joi.string().required(),
+      email: Joi.string().email().optional().allow(null, ""),
+      password: Joi.string().min(6).required(),
+    });
+
+    const body = validate(schema, req.body);
+
+    // 👇 حطهم هنا
+    console.log("========== FILES ==========");
+    console.dir(req.files, { depth: null });
+    console.log("===========================");
+
+    // Required Images
+    if (
+      !req.files?.nationalIdFront ||
+      !req.files?.nationalIdBack ||
+      !req.files?.drivingLicense ||
+      !req.files?.motorcycleLicense
+    ) {
+      return ApiResponse.error(
+        res,
+        "يجب رفع البطاقة الأمامية والخلفية ورخصة القيادة ورخصة الموتوسيكل",
+        400,
+      );
+    }
+
+    // Check if there is already an approved user
+    const existingUser = await User.findOne({
+      phone: body.phone,
+      isDeleted: { $ne: true },
+    });
+
+    if (existingUser) {
+      return ApiResponse.error(res, "رقم الهاتف مستخدم بالفعل", 400);
+    }
+
+    // Search previous application by phone
+    let application = await DelegateApplication.findOne({
+      phone: body.phone,
+    });
+
+    // Still pending
+    if (application && application.status === "pending") {
+      return ApiResponse.error(res, "لديك طلب قيد المراجعة بالفعل", 400);
+    }
+
+    // Rejected -> Update same application
+    if (application && application.status === "rejected") {
+      // Delete old images from Cloudinary
+      const oldImages = [
+        application.nationalIdFront,
+        application.nationalIdBack,
+        application.drivingLicense,
+        application.motorcycleLicense,
+      ];
+
+      for (const image of oldImages) {
+        if (image?.publicId) {
+          try {
+            await deleteImage(image.publicId);
+          } catch (err) {
+            console.error("Cloudinary delete error:", err.message);
+          }
+        }
+      }
+
+      application.name = body.name;
+      application.email = body.email;
+      application.password = body.password;
+
+      application.nationalIdFront = {
+        url: req.files.nationalIdFront[0].path,
+        publicId:
+          req.files.nationalIdFront[0].filename ||
+          req.files.nationalIdFront[0].public_id,
+      };
+
+      application.nationalIdBack = {
+        url: req.files.nationalIdBack[0].path,
+        publicId:
+          req.files.nationalIdBack[0].filename ||
+          req.files.nationalIdBack[0].public_id,
+      };
+
+      application.drivingLicense = {
+        url: req.files.drivingLicense[0].path,
+        publicId:
+          req.files.drivingLicense[0].filename ||
+          req.files.drivingLicense[0].public_id,
+      };
+
+      application.motorcycleLicense = {
+        url: req.files.motorcycleLicense[0].path,
+        publicId:
+          req.files.motorcycleLicense[0].filename ||
+          req.files.motorcycleLicense[0].public_id,
+      };
+
+      application.status = "pending";
+      application.rejectReason = null;
+      application.reviewedAt = null;
+      application.reviewedBy = null;
+      application.rejectedAt = null;
+
+      await application.save();
+
+      return ApiResponse.success(
+        res,
+        "تم إعادة إرسال طلب الانضمام بنجاح",
+        { application },
+        200,
+      );
+    }
+
+    // Create new application
+    application = new DelegateApplication({
+      name: body.name,
+      phone: body.phone,
+      email: body.email,
+      password: body.password,
+
+      nationalIdFront: {
+        url: req.files.nationalIdFront[0].path,
+        publicId:
+          req.files.nationalIdFront[0].filename ||
+          req.files.nationalIdFront[0].public_id,
+      },
+
+      nationalIdBack: {
+        url: req.files.nationalIdBack[0].path,
+        publicId:
+          req.files.nationalIdBack[0].filename ||
+          req.files.nationalIdBack[0].public_id,
+      },
+
+      drivingLicense: {
+        url: req.files.drivingLicense[0].path,
+        publicId:
+          req.files.drivingLicense[0].filename ||
+          req.files.drivingLicense[0].public_id,
+      },
+
+      motorcycleLicense: {
+        url: req.files.motorcycleLicense[0].path,
+        publicId:
+          req.files.motorcycleLicense[0].filename ||
+          req.files.motorcycleLicense[0].public_id,
+      },
+    });
+
+    await application.save();
+
+    return ApiResponse.success(
+      res,
+      "تم إرسال طلب الانضمام بنجاح، وسيتم مراجعته من الإدارة",
+      { application },
+      201,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delegate Login
+ * @route   POST /api/auth/delegate/login
+ * @access  Public
+ */
+exports.delegateLogin = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      phone: Joi.string().required(),
+      password: Joi.string().required(),
+    });
+
+    const body = validate(schema, req.body);
+
+    // Check approved delegate account
+    const user = await User.findOne({
+      phone: body.phone,
+      role: "delegate",
+      isDeleted: { $ne: true },
+    });
+
+    if (user) {
+      if (!user.isActive) {
+        const err = new Error("تم إيقاف حساب المندوب");
+        err.statusCode = 403;
+        return next(err);
+      }
+
+      const isMatch = await user.comparePassword(body.password);
+
+      if (!isMatch) {
+        const err = new Error("رقم الهاتف أو كلمة المرور غير صحيحة");
+        err.statusCode = 401;
+        return next(err);
+      }
+
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
+
+      user.refreshTokens.push(refreshToken);
+      await user.save();
+
+      return ApiResponse.success(
+        res,
+        "تم تسجيل الدخول بنجاح",
+        {
+          user: {
+            id: user._id,
+            name: user.name,
+            phone: user.phone,
+            email: user.email,
+            role: user.role,
+            isVerified: user.isVerified,
+            isActive: user.isActive,
+          },
+          accessToken,
+          refreshToken,
+        },
+        200,
+      );
+    }
+
+    // Check delegate application
+    const application = await DelegateApplication.findOne({
+      phone: body.phone,
+    }).select("+password");
+
+    if (!application) {
+      const err = new Error("رقم الهاتف أو كلمة المرور غير صحيحة");
+      err.statusCode = 401;
+      return next(err);
+    }
+
+    const isMatch = await application.comparePassword(body.password);
+
+    if (!isMatch) {
+      const err = new Error("رقم الهاتف أو كلمة المرور غير صحيحة");
+      err.statusCode = 401;
+      return next(err);
+    }
+
+    if (application.status === "pending") {
+      return ApiResponse.success(res, "طلب الانضمام مازال قيد المراجعة", {
+        status: "pending",
+      });
+    }
+
+    if (application.status === "rejected") {
+      return ApiResponse.success(res, "تم رفض طلب الانضمام", {
+        status: "rejected",
+        rejectReason: application.rejectReason,
+        rejectedAt: application.rejectedAt,
+      });
+    }
+
+    const err = new Error("لا يمكن تسجيل الدخول");
+    err.statusCode = 400;
+    return next(err);
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.sendOtp = async (req, res, next) => {
   try {
     const schema = Joi.object({

@@ -31,6 +31,7 @@ if (isCloudinaryConfigured) {
     "/delivery-photos": "orders/delivery",
     "/drop-center": "orders/drop",
     "/pickup-center": "orders/pickup-return",
+    "/register-delegate": "delegates/documents",
     default: "orders/device",
   };
 

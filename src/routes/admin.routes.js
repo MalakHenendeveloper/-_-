@@ -15,11 +15,33 @@ router.put("/users/:id/status", adminController.updateUserStatus);
 router.delete("/users/:id", adminController.deleteUser);
 
 // Delegate management
+//router.get("/delegates", adminController.getDelegates);
+//router.post("/delegates", adminController.createDelegate);
+// router.put("/delegates/:id/status", adminController.updateDelegateStatus);
+// router.delete("/delegates/:id", adminController.deleteDelegate);
+// Delegate management
 router.get("/delegates", adminController.getDelegates);
-router.post("/delegates", adminController.createDelegate);
-router.put("/delegates/:id/status", adminController.updateDelegateStatus);
-router.delete("/delegates/:id", adminController.deleteDelegate);
 
+router.get("/delegate-applications", adminController.getDelegateApplications);
+
+router.get(
+  "/delegate-applications/:id",
+  adminController.getDelegateApplicationById,
+);
+
+router.put(
+  "/delegate-applications/:id/approve",
+  adminController.approveDelegateApplication,
+);
+
+router.put(
+  "/delegate-applications/:id/reject",
+  adminController.rejectDelegateApplication,
+);
+
+router.put("/delegates/:id/status", adminController.updateDelegateStatus);
+
+router.delete("/delegates/:id", adminController.deleteDelegate);
 // Repair Centers management
 router.get("/centers", adminController.getCenters);
 router.get("/centers/:id", adminController.getCenterById);

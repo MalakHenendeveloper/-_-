@@ -1,6 +1,8 @@
 const Joi = require("joi");
 const mongoose = require("mongoose");
 const User = require("../models/User");
+const DelegateApplication = require("../models/DelegateApplication");
+const { deleteImage } = require("../config/cloudinary");
 const RepairCenter = require("../models/RepairCenter");
 const Order = require("../models/Order");
 const validate = require("../utils/validator");
@@ -464,7 +466,243 @@ exports.getDelegates = async (req, res, next) => {
     next(error);
   }
 };
+/**
+ * @desc    Get Delegate Applications
+ * @route   GET /api/admin/delegate-applications
+ * @access  Admin
+ */
+exports.getDelegateApplications = async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 10 } = req.query;
 
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter = {};
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const total = await DelegateApplication.countDocuments(filter);
+
+    const applications = await DelegateApplication.find(filter)
+      .select("-password")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    return ApiResponse.success(
+      res,
+      "طلبات تسجيل المندوبين",
+      { applications },
+      200,
+      {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+/**
+ * @desc    Get Delegate Application Details
+ * @route   GET /api/admin/delegate-applications/:id
+ * @access  Admin
+ */
+exports.getDelegateApplicationById = async (req, res, next) => {
+  try {
+    const application = await DelegateApplication.findById(req.params.id)
+      .select("-password")
+      .populate("reviewedBy", "name email");
+
+    if (!application) {
+      const err = new Error("طلب الانضمام غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    return ApiResponse.success(res, "تفاصيل طلب الانضمام", { application });
+  } catch (error) {
+    next(error);
+  }
+};
+/**
+ * @desc    Approve Delegate Application
+ * @route   PUT /api/admin/delegate-applications/:id/approve
+ * @access  Admin
+ */
+
+exports.approveDelegateApplication = async (req, res, next) => {
+  try {
+    const application = await DelegateApplication.findById(req.params.id);
+
+    if (!application) {
+      const err = new Error("طلب الانضمام غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    if (application.status !== "pending") {
+      const err = new Error("تم مراجعة هذا الطلب بالفعل");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    // Check phone
+    const phoneExists = await User.findOne({
+      phone: application.phone,
+      isDeleted: { $ne: true },
+    });
+
+    if (phoneExists) {
+      const err = new Error("رقم الهاتف مستخدم بالفعل");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    // Check email
+    if (application.email) {
+      const emailExists = await User.findOne({
+        email: application.email,
+        isDeleted: { $ne: true },
+      });
+
+      if (emailExists) {
+        const err = new Error("البريد الإلكتروني مستخدم بالفعل");
+        err.statusCode = 400;
+        return next(err);
+      }
+    }
+
+    // Create Delegate User
+    // const delegate = new User({
+    //   name: application.name,
+    //   phone: application.phone,
+    //   email: application.email,
+    //   password: application.password,
+
+    //   role: "delegate",
+
+    //   isVerified: true,
+    //   isActive: true,
+
+    //   nationalIdFront: application.nationalIdFront,
+    //   nationalIdBack: application.nationalIdBack,
+    //   drivingLicense: application.drivingLicense,
+    //   motorcycleLicense: application.motorcycleLicense,
+    // });
+    const delegate = new User({
+      name: application.name,
+      phone: application.phone,
+      email: application.email,
+      password: application.password,
+
+      role: "delegate",
+
+      isVerified: true,
+      isActive: true,
+
+      nationalIdFront: application.nationalIdFront,
+      nationalIdBack: application.nationalIdBack,
+      drivingLicense: application.drivingLicense,
+      motorcycleLicense: application.motorcycleLicense,
+    });
+    delegate.$locals = {
+      passwordAlreadyHashed: true,
+    };
+    await delegate.save();
+
+    // Delete application after approval
+    await application.deleteOne();
+
+    return ApiResponse.success(
+      res,
+      "تم قبول طلب المندوب بنجاح",
+      {
+        delegate,
+      },
+      201,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+/**
+ * @desc    Reject Delegate Application
+ * @route   PUT /api/admin/delegate-applications/:id/reject
+ * @access  Admin
+ */
+exports.rejectDelegateApplication = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      rejectReason: Joi.string().trim().min(5).required(),
+    });
+
+    const { rejectReason } = validate(schema, req.body);
+
+    const application = await DelegateApplication.findById(req.params.id);
+
+    if (!application) {
+      const err = new Error("طلب الانضمام غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    if (application.status !== "pending") {
+      const err = new Error("تم مراجعة هذا الطلب بالفعل");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    // Delete uploaded documents from Cloudinary
+    const images = [
+      application.nationalIdFront,
+      application.nationalIdBack,
+      application.drivingLicense,
+      application.motorcycleLicense,
+    ];
+
+    for (const image of images) {
+      if (!image?.publicId) continue;
+
+      try {
+        await deleteImage(image.publicId);
+      } catch (err) {
+        console.error("Cloudinary delete error:", err.message);
+      }
+    }
+
+    // Remove image references
+    application.nationalIdFront = null;
+    application.nationalIdBack = null;
+    application.drivingLicense = null;
+    application.motorcycleLicense = null;
+
+    application.status = "rejected";
+    application.rejectReason = rejectReason;
+    application.reviewedBy = req.user.id;
+    application.reviewedAt = new Date();
+    application.rejectedAt = new Date();
+
+    await application.save();
+
+    return ApiResponse.success(
+      res,
+      "تم رفض طلب المندوب بنجاح",
+      {
+        application,
+      },
+      200,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
 // POST /delegates - Create a delegate
 exports.createDelegate = async (req, res, next) => {
   try {
