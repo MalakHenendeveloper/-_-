@@ -5,7 +5,7 @@ const RepairCenter = require("../models/RepairCenter");
 const Order = require("../models/Order");
 const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
-
+const CenterService = require("../models/CenterService");
 // GET /users - List all users with pagination
 exports.getUsers = async (req, res, next) => {
   try {
@@ -281,7 +281,68 @@ exports.getCenters = async (req, res, next) => {
     next(error);
   }
 };
+// GET /centers/:id - Get repair center details
+exports.getCenterById = async (req, res, next) => {
+  try {
+    const center = await RepairCenter.findOne({
+      _id: req.params.id,
+      isDeleted: { $ne: true },
+    }).populate("owner", "-password");
 
+    if (!center) {
+      const err = new Error("مركز الصيانة غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    const services = await CenterService.find({
+      center: center._id,
+      isDeleted: { $ne: true },
+    }).sort({ createdAt: -1 });
+
+    const ordersCount = await Order.countDocuments({
+      repairCenter: center._id,
+    });
+
+    const completedOrders = await Order.countDocuments({
+      repairCenter: center._id,
+      status: "delivered",
+    });
+
+    const activeOrders = await Order.countDocuments({
+      repairCenter: center._id,
+      status: {
+        $in: [
+          "delegate_assigned",
+          "picked_up",
+          "at_center",
+          "inspecting",
+          "awaiting_approval",
+          "approved",
+          "repairing",
+          "repaired",
+          "returning",
+        ],
+      },
+    });
+
+    return ApiResponse.success(
+      res,
+      "تفاصيل مركز الصيانة",
+      {
+        center,
+        services,
+        statistics: {
+          ordersCount,
+          activeOrders,
+          completedOrders,
+        },
+      },
+    );
+  } catch (error) {
+    next(error);
+  }
+};
 // GET /orders - View all orders with search/filter and pagination
 exports.getOrders = async (req, res, next) => {
   try {
