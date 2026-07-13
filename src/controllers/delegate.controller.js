@@ -64,53 +64,213 @@ exports.getTaskHistory = async (req, res, next) => {
   }
 };
 
-// PUT /tasks/:orderId/accept
-exports.acceptTask = async (req, res, next) => {
+// GET /orders/available-pickup
+
+exports.getAvailablePickupOrders = async (req, res, next) => {
   try {
-    const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
-    if (!order) return;
+    const orders = await Order.find({
+      status: "pending",
+      $or: [{ delegate: null }, { delegate: { $exists: false } }],
+    })
+      .populate("client", "name phone")
+      .sort({ createdAt: -1 });
 
-    if (order.status !== "delegate_assigned") {
-      const err = new Error("لا يمكن قبول هذه المهمة في حالتها الحالية");
-      err.statusCode = 400;
-      return next(err);
-    }
-
-    order.statusHistory.push({
-      status: "delegate_assigned",
-      note: "قبل المندوب المهمة",
-      updatedBy: req.user.id,
+    return ApiResponse.success(res, "الطلبات المتاحة للاستلام", {
+      orders,
     });
-    await order.save();
-
-    return ApiResponse.success(res, "تم قبول المهمة بنجاح", { order });
   } catch (error) {
     next(error);
   }
 };
+// PUT /orders/:orderId/accept-pickup
+exports.acceptPickupOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findOneAndUpdate(
+      {
+        _id: req.params.orderId,
+        status: "pending",
+        $or: [{ delegate: null }, { delegate: { $exists: false } }],
+      },
+      {
+        $set: {
+          delegate: req.user.id,
+          status: "delegate_assigned",
+        },
+        $push: {
+          statusHistory: {
+            status: "delegate_assigned",
+            note: `تم قبول المهمة بواسطة المندوب ${req.user.name}`,
+            updatedBy: req.user.id,
+          },
+        },
+      },
+      {
+        new: true,
+      },
+    );
 
+    if (!order) {
+      const err = new Error("الطلب غير متاح أو تم استلامه بواسطة مندوب آخر");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    return ApiResponse.success(res, "تم قبول المهمة بنجاح", {
+      order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+// GET /orders/available-delivery
+exports.getAvailableDeliveryOrders = async (req, res, next) => {
+  try {
+    const orders = await Order.find({
+      status: "repaired",
+      $or: [{ delegate: null }, { delegate: { $exists: false } }],
+    })
+      .populate("client", "name phone")
+      .populate("repairCenter", "name phone address")
+      .sort({ updatedAt: -1 });
+
+    return ApiResponse.success(res, "الطلبات الجاهزة للتوصيل", {
+      orders,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+// PUT /orders/:orderId/accept-delivery
+exports.acceptDeliveryOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findOneAndUpdate(
+      {
+        _id: req.params.orderId,
+        status: "repaired",
+        $or: [{ delegate: null }, { delegate: { $exists: false } }],
+      },
+      {
+        $set: {
+          delegate: req.user.id,
+          status: "returning",
+        },
+        $push: {
+          statusHistory: {
+            status: "returning",
+            note: `تم قبول مهمة توصيل الجهاز بواسطة المندوب ${req.user.name}`,
+            updatedBy: req.user.id,
+          },
+        },
+      },
+      {
+        new: true,
+      },
+    );
+
+    if (!order) {
+      const err = new Error("الطلب غير متاح أو تم استلامه بواسطة مندوب آخر");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    return ApiResponse.success(res, "تم قبول مهمة التوصيل بنجاح", {
+      order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+// PUT /tasks/:orderId/accept
+// exports.acceptTask = async (req, res, next) => {
+//   try {
+//     const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
+//     if (!order) return;
+
+//     if (order.status !== "delegate_assigned") {
+//       const err = new Error("لا يمكن قبول هذه المهمة في حالتها الحالية");
+//       err.statusCode = 400;
+//       return next(err);
+//     }
+
+//     order.statusHistory.push({
+//       status: "delegate_assigned",
+//       note: "قبل المندوب المهمة",
+//       updatedBy: req.user.id,
+//     });
+//     await order.save();
+
+//     return ApiResponse.success(res, "تم قبول المهمة بنجاح", { order });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+// PUT /tasks/:orderId/reject
+// exports.rejectTask = async (req, res, next) => {
+//   try {
+//     const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
+//     if (!order) return;
+
+//     // Remove delegate assignment, revert to pending
+//     order.delegate = undefined;
+//     order.status = "pending";
+//     order.statusHistory.push({
+//       status: "pending",
+//       note: "رفض المندوب المهمة، جاري إعادة التعيين",
+//       updatedBy: req.user.id,
+//     });
+//     await order.save();
+
+//     return ApiResponse.success(res, "تم رفض المهمة", { order });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 // PUT /tasks/:orderId/reject
 exports.rejectTask = async (req, res, next) => {
   try {
     const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
+
     if (!order) return;
 
-    // Remove delegate assignment, revert to pending
+    // إزالة المندوب من الطلب
     order.delegate = undefined;
-    order.status = "pending";
-    order.statusHistory.push({
-      status: "pending",
-      note: "رفض المندوب المهمة، جاري إعادة التعيين",
-      updatedBy: req.user.id,
-    });
+
+    // لو المهمة كانت استلام من العميل
+    if (order.status === "delegate_assigned") {
+      order.status = "pending";
+
+      order.statusHistory.push({
+        status: "pending",
+        note: "اعتذر المندوب عن استلام الجهاز، وأصبحت المهمة متاحة لمندوب آخر",
+        updatedBy: req.user.id,
+      });
+    }
+
+    // لو المهمة كانت توصيل الجهاز بعد الإصلاح
+    else if (order.status === "returning") {
+      order.status = "repaired";
+
+      order.statusHistory.push({
+        status: "repaired",
+        note: "اعتذر المندوب عن توصيل الجهاز، وأصبحت المهمة متاحة لمندوب آخر",
+        updatedBy: req.user.id,
+      });
+    } else {
+      const err = new Error("لا يمكن رفض هذه المهمة في حالتها الحالية");
+      err.statusCode = 400;
+      return next(err);
+    }
+
     await order.save();
 
-    return ApiResponse.success(res, "تم رفض المهمة", { order });
+    return ApiResponse.success(res, "تم إلغاء المهمة وأصبحت متاحة لمندوب آخر", {
+      order,
+    });
   } catch (error) {
     next(error);
   }
 };
-
 // POST /tasks/:orderId/pickup-photos
 exports.uploadPickupPhotos = async (req, res, next) => {
   try {

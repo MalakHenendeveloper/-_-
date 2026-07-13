@@ -31,7 +31,7 @@ router.delete("/centers/:id", adminController.deleteCenter);
 // Orders management
 router.get("/orders", adminController.getOrders);
 router.get("/orders/:id", adminController.getOrderById);
-router.put("/orders/:id/assign-delegate", adminController.assignDelegate);
+// router.put("/orders/:id/assign-delegate", adminController.assignDelegate);
 
 // Stats
 router.get("/stats/overview", adminController.getStatsOverview);

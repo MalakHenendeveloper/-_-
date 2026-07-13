@@ -187,7 +187,6 @@ exports.getCenterOrderById = async (req, res, next) => {
   }
 };
 
-
 /**
  * @desc    Get services for specific repair center
  * @route   GET /api/centers/:id/services
@@ -216,15 +215,11 @@ exports.getCenterServices = async (req, res, next) => {
       )
       .sort({ createdAt: -1 });
 
-    return ApiResponse.success(
-      res,
-      "خدمات مركز الصيانة",
-      {
-        center,
-        total: services.length,
-        services,
-      },
-    );
+    return ApiResponse.success(res, "خدمات مركز الصيانة", {
+      center,
+      total: services.length,
+      services,
+    });
   } catch (error) {
     next(error);
   }
@@ -287,6 +282,9 @@ exports.updateOrderStatus = async (req, res, next) => {
     }
 
     order.status = body.status;
+    if (body.status === "repaired") {
+      order.delegate = undefined;
+    }
     order.statusHistory.push({
       status: body.status,
       note: body.note || "تم تحديث حالة الطلب من قبل المركز",
