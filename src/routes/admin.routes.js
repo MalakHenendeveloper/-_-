@@ -21,9 +21,9 @@ router.put("/delegates/:id/status", adminController.updateDelegateStatus);
 router.delete("/delegates/:id", adminController.deleteDelegate);
 
 // Repair Centers management
-
+router.get("/centers", adminController.getCenters);
 router.post("/centers", upload.single("logo"), adminController.createCenter);
-router.post("/centers", adminController.createCenter);
+//router.post("/centers", adminController.createCenter);
 router.put("/centers/:id/status", adminController.updateCenterStatus);
 router.delete("/centers/:id", adminController.deleteCenter);
 
