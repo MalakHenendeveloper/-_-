@@ -411,13 +411,28 @@ exports.getDelegates = async (req, res, next) => {
 // POST /delegates - Create a delegate
 exports.createDelegate = async (req, res, next) => {
   try {
-    const schema = Joi.object({
-      name: Joi.string().required(),
-      phone: Joi.string().required(),
-      email: Joi.string().email().optional(),
-      password: Joi.string().min(6).required(),
-    });
+    // const schema = Joi.object({
+    //   name: Joi.string().required(),
+    //   phone: Joi.string().required(),
+    //   email: Joi.string().email().optional(),
+    //   password: Joi.string().min(6).required(),
+    // });
+const schema = Joi.object({
+  name: Joi.string().required(),
+  phone: Joi.string().required(),
+  email: Joi.string().email().optional(),
+  password: Joi.string().min(6).required(),
 
+  addresses: Joi.array()
+    .items(
+      Joi.object({
+        label: Joi.string().required(),
+        address: Joi.string().required(),
+        city: Joi.string().required(),
+      }),
+    )
+    .default([]),
+});
     const body = validate(schema, req.body);
 
     // FIX: Soft delete filter - allow reusing deleted user's phone number
@@ -443,7 +458,6 @@ exports.createDelegate = async (req, res, next) => {
         return next(err);
       }
     }
-
     const delegate = new User({
       name: body.name,
       phone: body.phone,
@@ -452,7 +466,18 @@ exports.createDelegate = async (req, res, next) => {
       role: "delegate",
       isVerified: true,
       isActive: true,
+      addresses: body.addresses,
     });
+
+    // const delegate = new User({
+    //   name: body.name,
+    //   phone: body.phone,
+    //   email: body.email,
+    //   password: body.password,
+    //   role: "delegate",
+    //   isVerified: true,
+    //   isActive: true,
+    // });
     await delegate.save();
 
     return ApiResponse.success(res, "تم إنشاء مندوب بنجاح", { delegate }, 201);
