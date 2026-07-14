@@ -1,4 +1,4 @@
-const app = require('./src/app');
+/*const app = require('./src/app');
 const config = require('./src/config/env');
 const connectDB = require('./src/config/db');
 
@@ -18,3 +18,37 @@ process.on('unhandledRejection', (err, promise) => {
   // Close server & exit process
   server.close(() => process.exit(1));
 });
+*/
+
+const app = require("./src/app");
+const config = require("./src/config/env");
+const connectDB = require("./src/config/db");
+
+const startServer = async () => {
+  try {
+    // Connect to Database first
+    await connectDB();
+
+    // Start Cron Jobs
+    require("./src/jobs/delegateCleanup.job");
+
+    const PORT = config.port || 5000;
+
+    const server = app.listen(PORT, () => {
+      console.log(`Server running in ${config.env} mode on port ${PORT}`);
+    });
+
+    process.on("unhandledRejection", (err) => {
+      console.error(err);
+
+      server.close(() => process.exit(1));
+    });
+  } catch (error) {
+    console.error("Failed to start server");
+    console.error(error);
+
+    process.exit(1);
+  }
+};
+
+startServer();

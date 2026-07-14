@@ -16,6 +16,21 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000,
     });
 
+    mongoose.connection.on("connected", () => {
+      console.log("🟢 Mongo Connected");
+    });
+
+    mongoose.connection.on("disconnected", () => {
+      console.log("🔴 Mongo Disconnected");
+    });
+
+    mongoose.connection.on("reconnected", () => {
+      console.log("🟡 Mongo Reconnected");
+    });
+
+    mongoose.connection.on("error", (err) => {
+      console.error("🔥 Mongo Error:", err);
+    });
     console.log(`MongoDB Connected: ${conn.connection.host}`);
 
     return conn;
