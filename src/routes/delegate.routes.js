@@ -35,10 +35,10 @@ router.post(
   upload.array("photos", 10),
   delegateController.uploadPickupPhotos,
 );
-router.post(
-  "/tasks/:orderId/verify-pickup-otp",
-  delegateController.verifyPickupOtp,
-);
+// router.post(
+//   "/tasks/:orderId/verify-pickup-otp",
+//   delegateController.verifyPickupOtp,
+// );
 router.put("/tasks/:orderId/confirm-pickup", delegateController.confirmPickup);
 router.put(
   "/tasks/:orderId/confirm-drop-center",
@@ -56,10 +56,10 @@ router.post(
   upload.array("photos", 10),
   delegateController.uploadDeliveryPhotos,
 );
-router.post(
-  "/tasks/:orderId/verify-delivery-otp",
-  delegateController.verifyDeliveryOtp,
-);
+// router.post(
+//   "/tasks/:orderId/verify-delivery-otp",
+//   delegateController.verifyDeliveryOtp,
+// );
 router.put(
   "/tasks/:orderId/confirm-delivery",
   delegateController.confirmDelivery,

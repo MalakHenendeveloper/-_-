@@ -84,6 +84,9 @@ const OrderSchema = new mongoose.Schema(
         timestamp: { type: Date, default: Date.now },
         note: { type: String },
         updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        role: {
+          type: String,
+        },
       },
     ],
     pickupOTP: {

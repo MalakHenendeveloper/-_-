@@ -822,177 +822,177 @@ exports.delegateLogin = async (req, res, next) => {
   }
 };
 
-exports.sendOtp = async (req, res, next) => {
-  try {
-    const schema = Joi.object({
-      phone: Joi.string().required(),
-      type: Joi.string().valid("reset_password").required(), // ✅ Only reset_password now
-    });
+// exports.sendOtp = async (req, res, next) => {
+//   try {
+//     const schema = Joi.object({
+//       phone: Joi.string().required(),
+//       type: Joi.string().valid("reset_password").required(), // ✅ Only reset_password now
+//     });
 
-    const body = validate(schema, req.body);
+//     const body = validate(schema, req.body);
 
-    // Generate new OTP
-    const otpCode = generateOTP();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+//     // Generate new OTP
+//     const otpCode = generateOTP();
+//     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    // Delete existing unused OTPs of the same type for this phone to clean up
-    await OTP.deleteMany({ phone: body.phone, type: body.type });
+//     // Delete existing unused OTPs of the same type for this phone to clean up
+//     await OTP.deleteMany({ phone: body.phone, type: body.type });
 
-    const otp = new OTP({
-      phone: body.phone,
-      code: otpCode,
-      type: body.type,
-      expiresAt,
-    });
-    await otp.save();
+//     const otp = new OTP({
+//       phone: body.phone,
+//       code: otpCode,
+//       type: body.type,
+//       expiresAt,
+//     });
+//     await otp.save();
 
-    await sendSMS(body.phone, `رمز التحقق الخاص بك هو: ${otpCode}`);
+//     await sendSMS(body.phone, `رمز التحقق الخاص بك هو: ${otpCode}`);
 
-    return ApiResponse.success(res, "تم إرسال رمز التحقق بنجاح");
-  } catch (error) {
-    next(error);
-  }
-};
+//     return ApiResponse.success(res, "تم إرسال رمز التحقق بنجاح");
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
-// Verify OTP for password reset only
-// ✅ REFACTOR: Registration OTP removed - this is only for reset_password flow
-exports.verifyOtp = async (req, res, next) => {
-  try {
-    const schema = Joi.object({
-      phone: Joi.string().required(),
-      code: Joi.string().required(),
-      type: Joi.string().valid("reset_password").required(), // ✅ Only reset_password now
-    });
+// // Verify OTP for password reset only
+// // ✅ REFACTOR: Registration OTP removed - this is only for reset_password flow
+// exports.verifyOtp = async (req, res, next) => {
+//   try {
+//     const schema = Joi.object({
+//       phone: Joi.string().required(),
+//       code: Joi.string().required(),
+//       type: Joi.string().valid("reset_password").required(), // ✅ Only reset_password now
+//     });
 
-    const body = validate(schema, req.body);
+//     const body = validate(schema, req.body);
 
-    const otp = await OTP.findOne({
-      phone: body.phone,
-      code: body.code,
-      type: body.type,
-      expiresAt: { $gt: new Date() },
-      isUsed: false,
-    });
+//     const otp = await OTP.findOne({
+//       phone: body.phone,
+//       code: body.code,
+//       type: body.type,
+//       expiresAt: { $gt: new Date() },
+//       isUsed: false,
+//     });
 
-    if (!otp) {
-      const error = new Error("رمز التحقق غير صحيح أو منتهي الصلاحية");
-      error.statusCode = 400;
-      return next(error);
-    }
+//     if (!otp) {
+//       const error = new Error("رمز التحقق غير صحيح أو منتهي الصلاحية");
+//       error.statusCode = 400;
+//       return next(error);
+//     }
 
-    // Mark OTP as used
-    otp.isUsed = true;
-    await otp.save();
+//     // Mark OTP as used
+//     otp.isUsed = true;
+//     await otp.save();
 
-    return ApiResponse.success(res, "تم التحقق من الرمز بنجاح", {
-      phone: body.phone,
-      verified: true,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+//     return ApiResponse.success(res, "تم التحقق من الرمز بنجاح", {
+//       phone: body.phone,
+//       verified: true,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 // Forgot Password Request
-exports.forgotPassword = async (req, res, next) => {
-  try {
-    const schema = Joi.object({
-      phone: Joi.string().required(),
-    });
+// exports.forgotPassword = async (req, res, next) => {
+//   try {
+//     const schema = Joi.object({
+//       phone: Joi.string().required(),
+//     });
 
-    const { phone } = validate(schema, req.body);
+//     const { phone } = validate(schema, req.body);
 
-    const user = await User.findOne({ phone });
-    if (!user) {
-      const error = new Error("رقم الهاتف غير مسجل لدينا");
-      error.statusCode = 404;
-      return next(error);
-    }
+//     const user = await User.findOne({ phone });
+//     if (!user) {
+//       const error = new Error("رقم الهاتف غير مسجل لدينا");
+//       error.statusCode = 404;
+//       return next(error);
+//     }
 
-    if (!user.email) {
-      const error = new Error(
-        "لا يوجد بريد إلكتروني مسجل لهذا الحساب لإرسال رمز التحقق",
-      );
-      error.statusCode = 400;
-      return next(error);
-    }
+//     if (!user.email) {
+//       const error = new Error(
+//         "لا يوجد بريد إلكتروني مسجل لهذا الحساب لإرسال رمز التحقق",
+//       );
+//       error.statusCode = 400;
+//       return next(error);
+//     }
 
-    // Generate reset OTP
-    const otpCode = generateOTP();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+//     // Generate reset OTP
+//     const otpCode = generateOTP();
+//     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    await OTP.deleteMany({ phone, type: "reset_password" });
+//     await OTP.deleteMany({ phone, type: "reset_password" });
 
-    const otp = new OTP({
-      phone,
-      code: otpCode,
-      type: "reset_password",
-      expiresAt,
-    });
-    await otp.save();
+//     const otp = new OTP({
+//       phone,
+//       code: otpCode,
+//       type: "reset_password",
+//       expiresAt,
+//     });
+//     await otp.save();
 
-    await sendEmail({
-      email: user.email,
-      subject: "إعادة تعيين كلمة المرور",
-      message: `رمز إعادة تعيين كلمة المرور الخاص بك هو: ${otpCode}`,
-    });
+//     await sendEmail({
+//       email: user.email,
+//       subject: "إعادة تعيين كلمة المرور",
+//       message: `رمز إعادة تعيين كلمة المرور الخاص بك هو: ${otpCode}`,
+//     });
 
-    return ApiResponse.success(
-      res,
-      "تم إرسال رمز إعادة تعيين كلمة المرور بنجاح إلى بريدك الإلكتروني",
-    );
-  } catch (error) {
-    next(error);
-  }
-};
+//     return ApiResponse.success(
+//       res,
+//       "تم إرسال رمز إعادة تعيين كلمة المرور بنجاح إلى بريدك الإلكتروني",
+//     );
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
-// Reset Password Execution
-exports.resetPassword = async (req, res, next) => {
-  try {
-    const schema = Joi.object({
-      phone: Joi.string().required(),
-      code: Joi.string().required(),
-      newPassword: Joi.string().min(6).required(),
-    });
+// // Reset Password Execution
+// exports.resetPassword = async (req, res, next) => {
+//   try {
+//     const schema = Joi.object({
+//       phone: Joi.string().required(),
+//       code: Joi.string().required(),
+//       newPassword: Joi.string().min(6).required(),
+//     });
 
-    const body = validate(schema, req.body);
+//     const body = validate(schema, req.body);
 
-    // Verify OTP
-    const otp = await OTP.findOne({
-      phone: body.phone,
-      code: body.code,
-      type: "reset_password",
-      expiresAt: { $gt: new Date() },
-      isUsed: false,
-    });
+//     // Verify OTP
+//     const otp = await OTP.findOne({
+//       phone: body.phone,
+//       code: body.code,
+//       type: "reset_password",
+//       expiresAt: { $gt: new Date() },
+//       isUsed: false,
+//     });
 
-    if (!otp) {
-      const error = new Error("رمز التحقق غير صحيح أو منتهي الصلاحية");
-      error.statusCode = 400;
-      return next(error);
-    }
+//     if (!otp) {
+//       const error = new Error("رمز التحقق غير صحيح أو منتهي الصلاحية");
+//       error.statusCode = 400;
+//       return next(error);
+//     }
 
-    // Mark OTP as used
-    otp.isUsed = true;
-    await otp.save();
+//     // Mark OTP as used
+//     otp.isUsed = true;
+//     await otp.save();
 
-    // Find and update user password
-    const user = await User.findOne({ phone: body.phone });
-    if (!user) {
-      const error = new Error("المستخدم غير موجود");
-      error.statusCode = 404;
-      return next(error);
-    }
+//     // Find and update user password
+//     const user = await User.findOne({ phone: body.phone });
+//     if (!user) {
+//       const error = new Error("المستخدم غير موجود");
+//       error.statusCode = 404;
+//       return next(error);
+//     }
 
-    user.password = body.newPassword;
-    // FIX #4: SECURITY - Clear all refresh tokens on password reset
-    // Forces logout on all devices. Prevents token reuse attacks
-    // if password is compromised.
-    user.refreshTokens = []; // ✅ Force logout everywhere
-    await user.save();
+//     user.password = body.newPassword;
+//     // FIX #4: SECURITY - Clear all refresh tokens on password reset
+//     // Forces logout on all devices. Prevents token reuse attacks
+//     // if password is compromised.
+//     user.refreshTokens = []; // ✅ Force logout everywhere
+//     await user.save();
 
-    return ApiResponse.success(res, "تم إعادة تعيين كلمة المرور بنجاح");
-  } catch (error) {
-    next(error);
-  }
-};
+//     return ApiResponse.success(res, "تم إعادة تعيين كلمة المرور بنجاح");
+//   } catch (error) {
+//     next(error);
+//   }
+// };

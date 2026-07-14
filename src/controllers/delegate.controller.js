@@ -1,9 +1,9 @@
 const Joi = require("joi");
 const Order = require("../models/Order");
-const OTP = require("../models/OTP");
+//const OTP = require("../models/OTP");
 const User = require("../models/User");
-const generateOTP = require("../utils/generateOTP");
-const sendSMS = require("../utils/sendSMS");
+// const generateOTP = require("../utils/generateOTP");
+// const sendSMS = require("../utils/sendSMS");
 const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
 
@@ -180,52 +180,7 @@ exports.acceptDeliveryOrder = async (req, res, next) => {
     next(error);
   }
 };
-// PUT /tasks/:orderId/accept
-// exports.acceptTask = async (req, res, next) => {
-//   try {
-//     const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
-//     if (!order) return;
 
-//     if (order.status !== "delegate_assigned") {
-//       const err = new Error("لا يمكن قبول هذه المهمة في حالتها الحالية");
-//       err.statusCode = 400;
-//       return next(err);
-//     }
-
-//     order.statusHistory.push({
-//       status: "delegate_assigned",
-//       note: "قبل المندوب المهمة",
-//       updatedBy: req.user.id,
-//     });
-//     await order.save();
-
-//     return ApiResponse.success(res, "تم قبول المهمة بنجاح", { order });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// PUT /tasks/:orderId/reject
-// exports.rejectTask = async (req, res, next) => {
-//   try {
-//     const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
-//     if (!order) return;
-
-//     // Remove delegate assignment, revert to pending
-//     order.delegate = undefined;
-//     order.status = "pending";
-//     order.statusHistory.push({
-//       status: "pending",
-//       note: "رفض المندوب المهمة، جاري إعادة التعيين",
-//       updatedBy: req.user.id,
-//     });
-//     await order.save();
-
-//     return ApiResponse.success(res, "تم رفض المهمة", { order });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 // PUT /tasks/:orderId/reject
 exports.rejectTask = async (req, res, next) => {
   try {
@@ -291,50 +246,50 @@ exports.uploadPickupPhotos = async (req, res, next) => {
 
 // POST /tasks/:orderId/verify-pickup-otp
 // Delegate enters the OTP the client told him
-exports.verifyPickupOtp = async (req, res, next) => {
-  try {
-    const schema = Joi.object({ code: Joi.string().required() });
-    const { code } = validate(schema, req.body);
+// exports.verifyPickupOtp = async (req, res, next) => {
+//   try {
+//     const schema = Joi.object({ code: Joi.string().required() });
+//     const { code } = validate(schema, req.body);
 
-    const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
-    if (!order) return;
+//     const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
+//     if (!order) return;
 
-    // Verify OTP from OTP collection (pickup_confirm type linked to client phone)
-    const clientPhone = order.client.phone;
-    const otp = await OTP.findOne({
-      phone: clientPhone,
-      code,
-      type: "pickup_confirm",
-      expiresAt: { $gt: new Date() },
-      isUsed: false,
-    });
+//     // Verify OTP from OTP collection (pickup_confirm type linked to client phone)
+//     const clientPhone = order.client.phone;
+//     const otp = await OTP.findOne({
+//       phone: clientPhone,
+//       code,
+//       type: "pickup_confirm",
+//       expiresAt: { $gt: new Date() },
+//       isUsed: false,
+//     });
 
-    if (!otp) {
-      const err = new Error("رمز التحقق غير صحيح أو منتهي الصلاحية");
-      err.statusCode = 400;
-      return next(err);
-    }
+//     if (!otp) {
+//       const err = new Error("رمز التحقق غير صحيح أو منتهي الصلاحية");
+//       err.statusCode = 400;
+//       return next(err);
+//     }
 
-    otp.isUsed = true;
-    await otp.save();
+//     otp.isUsed = true;
+//     await otp.save();
 
-    order.pickupOTP.verified = true;
-    if (order.status !== "picked_up") {
-      order.status = "picked_up";
-      order.statusHistory.push({
-        status: "picked_up",
-        note: "تم تأكيد استلام الجهاز من العميل",
-        updatedBy: req.user.id,
-      });
-    }
+//     order.pickupOTP.verified = true;
+//     if (order.status !== "picked_up") {
+//       order.status = "picked_up";
+//       order.statusHistory.push({
+//         status: "picked_up",
+//         note: "تم تأكيد استلام الجهاز من العميل",
+//         updatedBy: req.user.id,
+//       });
+//     }
 
-    await order.save();
+//     await order.save();
 
-    return ApiResponse.success(res, "تم التحقق من رمز الاستلام بنجاح");
-  } catch (error) {
-    next(error);
-  }
-};
+//     return ApiResponse.success(res, "تم التحقق من رمز الاستلام بنجاح");
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 // PUT /tasks/:orderId/confirm-pickup
 // Generates OTP and sends to client to confirm device pickup
@@ -349,36 +304,21 @@ exports.confirmPickup = async (req, res, next) => {
       return next(err);
     }
 
-    const clientPhone = order.client.phone;
-    const otpCode = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    order.status = "picked_up";
 
-    await OTP.deleteMany({ phone: clientPhone, type: "pickup_confirm" });
-    await OTP.create({
-      phone: clientPhone,
-      code: otpCode,
-      type: "pickup_confirm",
-      expiresAt,
-    });
-
-    await sendSMS(clientPhone, `رمز تأكيد استلام جهازك هو: ${otpCode}`);
-
-    order.pickupOTP = { code: otpCode, expiresAt, verified: false };
     order.statusHistory.push({
-      status: order.status,
-      note: "تم إرسال رمز التحقق للعميل لتأكيد الاستلام",
+      status: "picked_up",
+      note: "تم استلام الجهاز من العميل",
       updatedBy: req.user.id,
     });
+
     await order.save();
 
-    return ApiResponse.success(res, "تم إرسال رمز التأكيد للعميل", {
-      orderStatus: order.status,
-    });
+    return ApiResponse.success(res, "تم تأكيد استلام الجهاز بنجاح", { order });
   } catch (error) {
     next(error);
   }
 };
-
 // PUT /tasks/:orderId/confirm-drop-center
 // Delegate delivered device to repair center
 exports.confirmDropCenter = async (req, res, next) => {
@@ -446,47 +386,47 @@ exports.uploadDeliveryPhotos = async (req, res, next) => {
 };
 
 // POST /tasks/:orderId/verify-delivery-otp
-exports.verifyDeliveryOtp = async (req, res, next) => {
-  try {
-    const schema = Joi.object({ code: Joi.string().required() });
-    const { code } = validate(schema, req.body);
+// exports.verifyDeliveryOtp = async (req, res, next) => {
+//   try {
+//     const schema = Joi.object({ code: Joi.string().required() });
+//     const { code } = validate(schema, req.body);
 
-    const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
-    if (!order) return;
+//     const order = await getDelegateOrder(req.params.orderId, req.user.id, next);
+//     if (!order) return;
 
-    const clientPhone = order.client.phone;
-    const otp = await OTP.findOne({
-      phone: clientPhone,
-      code,
-      type: "delivery_confirm",
-      expiresAt: { $gt: new Date() },
-      isUsed: false,
-    });
+//     const clientPhone = order.client.phone;
+//     const otp = await OTP.findOne({
+//       phone: clientPhone,
+//       code,
+//       type: "delivery_confirm",
+//       expiresAt: { $gt: new Date() },
+//       isUsed: false,
+//     });
 
-    if (!otp) {
-      const err = new Error("رمز التحقق غير صحيح أو منتهي الصلاحية");
-      err.statusCode = 400;
-      return next(err);
-    }
+//     if (!otp) {
+//       const err = new Error("رمز التحقق غير صحيح أو منتهي الصلاحية");
+//       err.statusCode = 400;
+//       return next(err);
+//     }
 
-    otp.isUsed = true;
-    await otp.save();
+//     otp.isUsed = true;
+//     await otp.save();
 
-    order.deliveryOTP.verified = true;
-    order.status = "delivered";
-    order.paymentStatus = "paid";
-    order.statusHistory.push({
-      status: "delivered",
-      note: "تم التحقق من رمز التسليم، وتم تسليم الجهاز للعميل",
-      updatedBy: req.user.id,
-    });
-    await order.save();
+//     order.deliveryOTP.verified = true;
+//     order.status = "delivered";
+//     order.paymentStatus = "paid";
+//     order.statusHistory.push({
+//       status: "delivered",
+//       note: "تم التحقق من رمز التسليم، وتم تسليم الجهاز للعميل",
+//       updatedBy: req.user.id,
+//     });
+//     await order.save();
 
-    return ApiResponse.success(res, "تم التحقق من رمز التسليم بنجاح");
-  } catch (error) {
-    next(error);
-  }
-};
+//     return ApiResponse.success(res, "تم التحقق من رمز التسليم بنجاح");
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 // PUT /tasks/:orderId/confirm-delivery
 // Generate OTP and send to client to confirm delivery
@@ -501,34 +441,18 @@ exports.confirmDelivery = async (req, res, next) => {
       return next(err);
     }
 
-    const clientPhone = order.client.phone;
-    const otpCode = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    order.status = "delivered";
+    order.paymentStatus = "paid";
 
-    await OTP.deleteMany({ phone: clientPhone, type: "delivery_confirm" });
-    await OTP.create({
-      phone: clientPhone,
-      code: otpCode,
-      type: "delivery_confirm",
-      expiresAt,
-    });
-
-    await sendSMS(
-      clientPhone,
-      `رمز تأكيد استلام جهازك المُصلَح هو: ${otpCode}`,
-    );
-
-    order.deliveryOTP = { code: otpCode, expiresAt, verified: false };
     order.statusHistory.push({
-      status: order.status,
-      note: "تم إرسال رمز تأكيد التسليم للعميل",
+      status: "delivered",
+      note: "تم تسليم الجهاز للعميل",
       updatedBy: req.user.id,
     });
+
     await order.save();
 
-    return ApiResponse.success(res, "تم إرسال رمز التأكيد للعميل", {
-      orderStatus: order.status,
-    });
+    return ApiResponse.success(res, "تم تسليم الجهاز بنجاح", { order });
   } catch (error) {
     next(error);
   }
