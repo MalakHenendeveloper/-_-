@@ -55,10 +55,17 @@ router.get("/orders", adminController.getOrders);
 router.get("/orders/:id", adminController.getOrderById);
 // router.put("/orders/:id/assign-delegate", adminController.assignDelegate);
 
+// Financial settings
+router.get("/financial-settings", adminController.getFinancialSettings);
+router.put("/financial-settings", adminController.updateFinancialSettings);
+
 // Stats
 router.get("/stats/overview", adminController.getStatsOverview);
 router.get("/stats/revenue", adminController.getStatsRevenue);
 router.get("/stats/centers", adminController.getStatsCenters);
 router.get("/stats/delegates", adminController.getStatsDelegates);
+//payments
+router.get("/payments", adminController.getPayments);
+router.put("/payments/:paymentId/review", adminController.reviewPayment);
 
 module.exports = router;

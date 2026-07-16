@@ -442,7 +442,6 @@ exports.confirmDelivery = async (req, res, next) => {
     }
 
     order.status = "delivered";
-    order.paymentStatus = "paid";
 
     order.statusHistory.push({
       status: "delivered",

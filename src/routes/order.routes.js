@@ -7,7 +7,12 @@ const upload = require("../middleware/upload.middleware");
 
 // All order routes require authentication
 router.use(protect);
-
+router.post(
+  "/:id/payment",
+  upload.single("screenshot"),
+  priceOfferController.submitPayment,
+);
+router.get("/:id/payment", priceOfferController.getPaymentByOrder);
 router.post("/", upload.array("images", 5), orderController.createOrder);
 router.get("/", orderController.getClientOrders);
 router.get("/:id/status-history", orderController.getOrderStatusHistory);

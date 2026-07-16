@@ -5,9 +5,15 @@ const DelegateApplication = require("../models/DelegateApplication");
 const { deleteImage } = require("../config/cloudinary");
 const RepairCenter = require("../models/RepairCenter");
 const Order = require("../models/Order");
+const SystemSetting = require("../models/SystemSetting");
+const Settlement = require("../models/Settlement");
 const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
 const CenterService = require("../models/CenterService");
+const Payment = require("../models/Payment");
+const {
+  buildFinancialViewForRole,
+} = require("../utils/financialCalculator");
 // GET /users - List all users with pagination
 exports.getUsers = async (req, res, next) => {
   try {
@@ -340,6 +346,94 @@ exports.getCenterById = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+// GET /financial-settings - Get admin financial settings
+exports.getFinancialSettings = async (req, res, next) => {
+  try {
+    let settings = await SystemSetting.findOne({ key: "default" });
+
+    if (!settings) {
+      settings = await SystemSetting.create({
+        key: "default",
+        currency: "IQD",
+        isActive: true,
+      });
+    }
+
+    return ApiResponse.success(res, "الإعدادات المالية", { settings });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /financial-settings - Update admin financial settings
+exports.updateFinancialSettings = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      walletOwnerName: Joi.string().allow("").optional(),
+      walletNumber: Joi.string().allow("").optional(),
+      paymentInstructions: Joi.string().allow("").optional(),
+      commissionType: Joi.string().valid("percentage", "fixed").optional(),
+      commissionValue: Joi.number().min(0).optional(),
+      delegateFeeType: Joi.string().valid("percentage", "fixed").optional(),
+      delegateFeeValue: Joi.number().min(0).optional(),
+      currency: Joi.string().allow("").optional(),
+      isActive: Joi.boolean().optional(),
+    });
+
+    const body = validate(schema, req.body);
+
+    let settings = await SystemSetting.findOne({ key: "default" });
+
+    if (!settings) {
+      settings = new SystemSetting({ key: "default" });
+    }
+
+    Object.assign(settings, body);
+    settings.updatedBy = req.user?._id || null;
+    settings.updatedAt = new Date();
+
+    await settings.save();
+
+    return ApiResponse.success(res, "تم تحديث الإعدادات المالية بنجاح", {
+      settings,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+//
+exports.getPayments = async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 10 } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter = {};
+    if (status) filter.status = status;
+
+    const total = await Payment.countDocuments(filter);
+    const payments = await Payment.find(filter)
+      .populate("order", "orderNumber status")
+      .populate("client", "name phone")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    return ApiResponse.success(res, "المدفوعات", { payments }, 200, {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      pages: Math.ceil(total / limitNum),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.reviewPayment = async (req, res, next) => {
+  return require("./priceOffer.controller").reviewPayment(req, res, next);
 };
 // GET /orders - View all orders with search/filter and pagination
 exports.getOrders = async (req, res, next) => {
@@ -829,7 +923,18 @@ exports.getOrderById = async (req, res, next) => {
       return next(err);
     }
 
-    return ApiResponse.success(res, "تفاصيل الطلب", { order });
+    const settings = await SystemSetting.findOne({ key: "default" });
+    const settlements = await Settlement.find({ order: order._id }).sort({
+      createdAt: -1,
+    });
+    const financialView = await buildFinancialViewForRole({
+      role: "admin",
+      order,
+      settings,
+      settlements,
+    });
+
+    return ApiResponse.success(res, "تفاصيل الطلب", { order, financialView });
   } catch (error) {
     next(error);
   }
@@ -852,7 +957,7 @@ exports.getStatsOverview = async (req, res, next) => {
     });
     const ordersCount = await Order.countDocuments();
     const revenue = await Order.aggregate([
-      { $match: { paymentStatus: "paid" } },
+      { $match: { paymentStatus: "confirmed" } },
       { $group: { _id: null, total: { $sum: "$fees.total" } } },
     ]);
 
@@ -872,7 +977,7 @@ exports.getStatsOverview = async (req, res, next) => {
 exports.getStatsRevenue = async (req, res, next) => {
   try {
     const revenueData = await Order.aggregate([
-      { $match: { paymentStatus: "paid" } },
+      { $match: { paymentStatus: "confirmed" } },
       {
         $group: {
           _id: "$status",

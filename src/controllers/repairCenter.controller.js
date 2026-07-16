@@ -1,9 +1,15 @@
 const Joi = require("joi");
 const RepairCenter = require("../models/RepairCenter");
 const Order = require("../models/Order");
+const Settlement = require("../models/Settlement");
+const SystemSetting = require("../models/SystemSetting");
 const ApiResponse = require("../utils/apiResponse");
 const validate = require("../utils/validator");
 const CenterService = require("../models/CenterService");
+const { canTransitionToStatus } = require("../utils/paymentUtils");
+const {
+  buildFinancialViewForRole,
+} = require("../utils/financialCalculator");
 
 // GET / - Public - List active repair centers with pagination
 exports.getActiveCenters = async (req, res, next) => {
@@ -181,7 +187,17 @@ exports.getCenterOrderById = async (req, res, next) => {
       return next(err);
     }
 
-    return ApiResponse.success(res, "تفاصيل الطلب الخاص بالمركز", { order });
+    const settings = await SystemSetting.findOne({ key: "default" });
+    const financialView = await buildFinancialViewForRole({
+      role: "center",
+      order,
+      settings,
+    });
+
+    return ApiResponse.success(res, "تفاصيل الطلب الخاص بالمركز", {
+      order,
+      financialView,
+    });
   } catch (error) {
     next(error);
   }
@@ -280,6 +296,12 @@ exports.updateOrderStatus = async (req, res, next) => {
       err.statusCode = 400;
       return next(err);
     }
+    const paymentCheck = canTransitionToStatus(body.status, order);
+    if (!paymentCheck.allowed) {
+      const err = new Error(paymentCheck.reason);
+      err.statusCode = 400;
+      return next(err);
+    }
 
     order.status = body.status;
     if (body.status === "repaired") {
@@ -329,7 +351,7 @@ exports.getCenterStats = async (req, res, next) => {
           paidRevenue: {
             $sum: {
               $cond: [
-                { $eq: ["$paymentStatus", "paid"] },
+                { $eq: ["$paymentStatus", "confirmed"] },
                 { $ifNull: ["$fees.total", 0] },
                 0,
               ],

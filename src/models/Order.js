@@ -121,8 +121,23 @@ const OrderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["unpaid", "paid"],
+      enum: ["unpaid", "pending", "confirmed", "rejected"],
       default: "unpaid",
+    },
+    financialSnapshot: {
+      repairAmount: { type: Number, default: 0 },
+      inspectionFee: { type: Number, default: 0 },
+      deliveryFee: { type: Number, default: 0 },
+      clientTotal: { type: Number, default: 0 },
+      adminCommission: { type: Number, default: 0 },
+      delegateFee: { type: Number, default: 0 },
+      centerAmount: { type: Number, default: 0 },
+      currency: { type: String, default: "IQD" },
+    },
+    paymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
+      default: null,
     },
   },
   {

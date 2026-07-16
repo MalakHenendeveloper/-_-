@@ -1,8 +1,13 @@
 const Joi = require("joi");
 const Order = require("../models/Order");
 const RepairCenter = require("../models/RepairCenter");
+const Settlement = require("../models/Settlement");
+const SystemSetting = require("../models/SystemSetting");
 const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
+const {
+  buildFinancialViewForRole,
+} = require("../utils/financialCalculator");
 
 // POST / - Create order (+ upload images)
 exports.createOrder = async (req, res, next) => {
@@ -152,7 +157,18 @@ exports.getOrderById = async (req, res, next) => {
       return next(err);
     }
 
-    return ApiResponse.success(res, "تفاصيل الطلب", { order });
+    const settings = await SystemSetting.findOne({ key: "default" });
+    const settlements = isAdmin
+      ? await Settlement.find({ order: order._id }).sort({ createdAt: -1 })
+      : [];
+    const financialView = await buildFinancialViewForRole({
+      role: req.user.role,
+      order,
+      settings,
+      settlements,
+    });
+
+    return ApiResponse.success(res, "تفاصيل الطلب", { order, financialView });
   } catch (error) {
     next(error);
   }
