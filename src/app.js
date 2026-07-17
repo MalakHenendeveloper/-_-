@@ -5,8 +5,9 @@ const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const mongoose = require("mongoose");
 
-const config = require("./config/env");
 const connectDB = require("./config/db");
+
+const config = require("./config/env");
 const errorHandler = require("./middleware/errorHandler");
 const sanitize = require("./middleware/sanitize.middleware");
 const ApiResponse = require("./utils/apiResponse");
@@ -91,6 +92,30 @@ app.get("/db-test", async (req, res) => {
     });
   }
 });
+
+let dbReadyPromise = null;
+
+const ensureDBReady = async (req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    return next();
+  }
+
+  if (!dbReadyPromise) {
+    dbReadyPromise = connectDB().catch((err) => {
+      dbReadyPromise = null;
+      throw err;
+    });
+  }
+
+  try {
+    await dbReadyPromise;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+app.use("/api", ensureDBReady);
 
 // Routes
 const authRoutes = require("./routes/auth.routes");
