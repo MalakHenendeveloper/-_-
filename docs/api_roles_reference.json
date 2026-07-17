@@ -1,0 +1,86 @@
+{
+  "name": "Mobile Maintenance API - Role Reference",
+  "version": "1.0.0",
+  "baseUrl": "{{baseUrl}}/api",
+  "authentication": {
+    "scheme": "Bearer JWT",
+    "header": "Authorization: Bearer {{accessToken}}",
+    "formats": { "json": "application/json", "uploads": "multipart/form-data" }
+  },
+  "public": [
+    { "method": "POST", "path": "/auth/register", "request": { "name": "string", "phone": "string", "password": "string", "email": "string?" }, "purpose": "Register a client account only" },
+    { "method": "POST", "path": "/auth/login", "request": { "phone": "string", "password": "string" }, "purpose": "Login client, center owner, or admin" },
+    { "method": "POST", "path": "/auth/register-delegate", "request": { "name": "string", "phone": "string", "email": "string?", "password": "string", "nationalIdFront": "{url, publicId}", "nationalIdBack": "{url, publicId}", "drivingLicense": "{url, publicId}", "motorcycleLicense": "{url, publicId}" }, "purpose": "Submit delegate application" },
+    { "method": "POST", "path": "/auth/delegate/login", "request": { "phone": "string", "password": "string" }, "purpose": "Login approved delegate or retrieve application state" },
+    { "method": "POST", "path": "/auth/refresh-token", "request": { "refreshToken": "string" }, "purpose": "Rotate access and refresh tokens" },
+    { "method": "GET", "path": "/centers?page=&limit=", "purpose": "List active centers" },
+    { "method": "GET", "path": "/centers/:id", "purpose": "Read active center details" },
+    { "method": "GET", "path": "/centers/:id/services", "purpose": "Read available services for one center" }
+  ],
+  "sharedAuthenticated": [
+    { "method": "POST", "path": "/auth/logout", "request": { "refreshToken": "string" }, "purpose": "Logout current session" },
+    { "method": "GET", "path": "/users/profile", "purpose": "Read current account profile" },
+    { "method": "PUT", "path": "/users/profile", "request": { "name": "string?", "email": "string?" }, "purpose": "Update current profile" },
+    { "method": "PUT", "path": "/users/avatar", "contentType": "multipart/form-data", "request": { "avatar": "file" }, "purpose": "Upload profile image" },
+    { "method": "PUT", "path": "/users/change-password", "request": { "currentPassword": "string", "newPassword": "string" }, "purpose": "Change password and revoke refresh tokens" },
+    { "method": "GET", "path": "/users/addresses", "purpose": "List current user's addresses" },
+    { "method": "POST", "path": "/users/addresses", "request": { "label": "string", "address": "string", "city": "string", "coordinates": "{lat,lng}?" }, "purpose": "Add an address" },
+    { "method": "PUT", "path": "/users/addresses/:id", "request": { "label": "string?", "address": "string?", "city": "string?", "coordinates": "{lat,lng}?" }, "purpose": "Update an address" },
+    { "method": "DELETE", "path": "/users/addresses/:id", "purpose": "Delete an address" }
+  ],
+  "client": [
+    { "method": "POST", "path": "/orders", "contentType": "multipart/form-data", "request": { "device": "{type,brand,model,problemType,problemDescription?}", "pickupAddress": "{address,city,coordinates?}", "repairCenter": "objectId?", "images": "file[]?" }, "purpose": "Create maintenance order" },
+    { "method": "GET", "path": "/orders?page=&limit=", "purpose": "List current client's orders" },
+    { "method": "GET", "path": "/orders/:id", "purpose": "Read owned order and client financial view" },
+    { "method": "GET", "path": "/orders/:id/tracking", "purpose": "Read current status and timeline" },
+    { "method": "GET", "path": "/orders/:id/status-history", "purpose": "Read status history" },
+    { "method": "PUT", "path": "/orders/:id/cancel", "purpose": "Cancel owned pending/delegate_assigned order" },
+    { "method": "PUT", "path": "/orders/:id/approve-offer", "purpose": "Approve pending price offer" },
+    { "method": "PUT", "path": "/orders/:id/reject-offer", "request": { "note": "string?" }, "purpose": "Reject pending price offer" },
+    { "method": "POST", "path": "/orders/:id/payment", "contentType": "multipart/form-data", "request": { "senderWalletNumber": "string", "transferReference": "string?", "notes": "string?", "screenshot": "file?" }, "purpose": "Submit Zain Cash payment proof after offer approval" },
+    { "method": "GET", "path": "/orders/:id/payment", "purpose": "Read payment details and client payment instructions" },
+    { "method": "PUT", "path": "/orders/:id/rate", "request": { "score": "1..5", "comment": "string?" }, "purpose": "Rate delivered order" },
+    { "method": "GET", "path": "/inspection/:orderId", "purpose": "Read owned order inspection" },
+    { "method": "GET", "path": "/price-offer/:orderId", "purpose": "Read price offer" }
+  ],
+  "delegate": [
+    { "method": "GET", "path": "/delegate/tasks", "purpose": "List active assigned tasks" },
+    { "method": "GET", "path": "/delegate/tasks/history", "purpose": "List delivered/cancelled task history" },
+    { "method": "GET", "path": "/delegate/orders/available-pickup", "purpose": "List unassigned pending pickup orders" },
+    { "method": "PUT", "path": "/delegate/orders/:orderId/accept-pickup", "purpose": "Claim a pickup task; status becomes delegate_assigned" },
+    { "method": "POST", "path": "/delegate/tasks/:orderId/pickup-photos", "contentType": "multipart/form-data", "request": { "photos": "file[]" }, "purpose": "Upload pickup evidence" },
+    { "method": "PUT", "path": "/delegate/tasks/:orderId/confirm-pickup", "purpose": "Confirm pickup; status becomes picked_up" },
+    { "method": "PUT", "path": "/delegate/tasks/:orderId/confirm-drop-center", "contentType": "multipart/form-data", "request": { "photos": "file[]?" }, "purpose": "Confirm center drop-off; status becomes at_center" },
+    { "method": "GET", "path": "/delegate/orders/available-delivery", "purpose": "List unassigned repaired orders" },
+    { "method": "PUT", "path": "/delegate/orders/:orderId/accept-delivery", "purpose": "Claim delivery task; status becomes returning" },
+    { "method": "PUT", "path": "/delegate/tasks/:orderId/confirm-pickup-center", "contentType": "multipart/form-data", "request": { "photos": "file[]?" }, "purpose": "Record pickup from repair center" },
+    { "method": "POST", "path": "/delegate/tasks/:orderId/delivery-photos", "contentType": "multipart/form-data", "request": { "photos": "file[]" }, "purpose": "Upload delivery evidence" },
+    { "method": "PUT", "path": "/delegate/tasks/:orderId/confirm-delivery", "purpose": "Confirm client delivery; status becomes delivered" },
+    { "method": "PUT", "path": "/delegate/tasks/:orderId/reject", "purpose": "Release claimed pickup/delivery task" }
+  ],
+  "center": [
+    { "method": "GET", "path": "/centers/dashboard/orders?page=&limit=", "purpose": "List center orders" },
+    { "method": "GET", "path": "/centers/dashboard/orders/:orderId", "purpose": "Read center order and center financial view" },
+    { "method": "PUT", "path": "/centers/dashboard/profile", "contentType": "multipart/form-data", "request": { "name": "string?", "phone": "string?", "email": "string?", "address": "string?", "city": "string?", "coordinates": "{lat,lng}?", "supportedBrands": "string[]?", "supportedDeviceTypes": "string[]?", "inspectionFee": "number?", "logo": "file?" }, "purpose": "Update center profile" },
+    { "method": "PUT", "path": "/centers/dashboard/orders/:orderId/status", "request": { "status": "valid next status", "note": "string?" }, "purpose": "Advance order state; payment confirmation is required before repair/delivery stages" },
+    { "method": "POST", "path": "/centers/dashboard/orders/:orderId/inspection", "contentType": "multipart/form-data", "request": { "technician": "string?", "findings": "[{issue,severity}]?", "notes": "string?", "images": "file[]?" }, "purpose": "Create inspection and set status inspecting" },
+    { "method": "POST", "path": "/centers/dashboard/orders/:orderId/price-offer", "request": { "spareParts": "[{name,cost}]?", "laborCost": "number", "inspectionFee": "number?", "deliveryFee": "number?", "estimatedDays": "number?", "notes": "string?" }, "purpose": "Create offer and set status awaiting_approval" },
+    { "method": "GET", "path": "/centers/dashboard/stats", "purpose": "Read center dashboard statistics" },
+    { "method": "POST", "path": "/center/services", "request": { "serviceName": "string", "description": "string?", "price": "number", "estimatedTime": "string?", "warranty": "string?", "isAvailable": "boolean?" }, "purpose": "Add center service" },
+    { "method": "GET", "path": "/center/services", "purpose": "List own services" },
+    { "method": "GET", "path": "/center/services/:id", "purpose": "Read own service" },
+    { "method": "PUT", "path": "/center/services/:id", "request": { "serviceName": "string?", "description": "string?", "price": "number?", "estimatedTime": "string?", "warranty": "string?", "isAvailable": "boolean?" }, "purpose": "Update own service" },
+    { "method": "DELETE", "path": "/center/services/:id", "purpose": "Soft delete own service" },
+    { "method": "PATCH", "path": "/center/services/:id/toggle", "purpose": "Toggle own service availability" }
+  ],
+  "admin": [
+    { "method": "GET", "path": "/admin/users?role=&page=&limit=", "purpose": "List users" }, { "method": "GET", "path": "/admin/users/:id", "purpose": "Read user" }, { "method": "PUT", "path": "/admin/users/:id/status", "request": { "isActive": "boolean" }, "purpose": "Activate/suspend user" }, { "method": "DELETE", "path": "/admin/users/:id", "purpose": "Soft delete user" },
+    { "method": "GET", "path": "/admin/delegates", "purpose": "List delegates" }, { "method": "PUT", "path": "/admin/delegates/:id/status", "request": { "isActive": "boolean" }, "purpose": "Activate/suspend delegate" }, { "method": "DELETE", "path": "/admin/delegates/:id", "purpose": "Soft delete delegate" },
+    { "method": "GET", "path": "/admin/delegate-applications?status=&page=&limit=", "purpose": "List applications" }, { "method": "GET", "path": "/admin/delegate-applications/:id", "purpose": "Read application" }, { "method": "PUT", "path": "/admin/delegate-applications/:id/approve", "purpose": "Approve and create delegate account" }, { "method": "PUT", "path": "/admin/delegate-applications/:id/reject", "request": { "rejectReason": "string?" }, "purpose": "Reject application" },
+    { "method": "GET", "path": "/admin/centers?page=&limit=", "purpose": "List centers" }, { "method": "GET", "path": "/admin/centers/:id", "purpose": "Read center" }, { "method": "POST", "path": "/admin/centers", "contentType": "multipart/form-data", "request": { "ownerName": "string", "phone": "string", "email": "string", "password": "string", "name": "string", "address": "string", "city": "string?", "logo": "file?" }, "purpose": "Create center owner and center" }, { "method": "PUT", "path": "/admin/centers/:id/status", "request": { "status": "pending|active|suspended" }, "purpose": "Change center status" }, { "method": "DELETE", "path": "/admin/centers/:id", "purpose": "Soft delete center" },
+    { "method": "GET", "path": "/admin/orders?status=&orderNumber=&page=&limit=", "purpose": "List all orders" }, { "method": "GET", "path": "/admin/orders/:id", "purpose": "Read order" },
+    { "method": "GET", "path": "/admin/payments?status=&page=&limit=", "purpose": "List payments" }, { "method": "PUT", "path": "/admin/payments/:paymentId/review", "request": { "status": "confirmed|rejected", "rejectionReason": "string?", "notes": "string?" }, "purpose": "Review payment and create settlements on confirmation" },
+    { "method": "GET", "path": "/admin/financial-settings", "purpose": "Read financial configuration" }, { "method": "PUT", "path": "/admin/financial-settings", "request": { "walletOwnerName": "string?", "walletNumber": "string?", "paymentInstructions": "string?", "commissionType": "percentage|fixed?", "commissionValue": "number?", "delegateFeeType": "percentage|fixed?", "delegateFeeValue": "number?", "currency": "string?", "isActive": "boolean?" }, "purpose": "Update financial configuration" },
+    { "method": "GET", "path": "/admin/stats/overview", "purpose": "Read global overview" }, { "method": "GET", "path": "/admin/stats/revenue", "purpose": "Read revenue statistics" }, { "method": "GET", "path": "/admin/stats/centers", "purpose": "Read center statistics" }, { "method": "GET", "path": "/admin/stats/delegates", "purpose": "Read delegate statistics" }
+  ]
+}

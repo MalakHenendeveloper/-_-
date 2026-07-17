@@ -1,0 +1,114 @@
+{
+  "info": {
+    "name": "Mobile Maintenance API (Current Role Flows)",
+    "description": "Collection generated from the current Express routes. Set baseUrl and accessToken variables; detailed request fields are in api_roles_reference.json.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "centerId", "value": "" },
+    { "key": "serviceId", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "paymentId", "value": "" },
+    { "key": "applicationId", "value": "" }
+  ],
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+  "item": [
+    {
+      "name": "Public & Authentication",
+      "item": [
+        { "name": "Register Client", "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Client Name\",\n  \"phone\": \"9647700000000\",\n  \"email\": \"client@example.com\",\n  \"password\": \"Password123\"\n}" }, "url": "{{baseUrl}}/api/auth/register" } },
+        { "name": "Login (Client / Center / Admin)", "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"phone\": \"9647700000000\",\n  \"password\": \"Password123\"\n}" }, "url": "{{baseUrl}}/api/auth/login" } },
+        { "name": "Register Delegate Application", "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Delegate Name\",\n  \"phone\": \"9647711111111\",\n  \"password\": \"Password123\",\n  \"nationalIdFront\": { \"url\": \"https://example.com/front.jpg\", \"publicId\": \"front\" },\n  \"nationalIdBack\": { \"url\": \"https://example.com/back.jpg\", \"publicId\": \"back\" },\n  \"drivingLicense\": { \"url\": \"https://example.com/driving.jpg\", \"publicId\": \"driving\" },\n  \"motorcycleLicense\": { \"url\": \"https://example.com/motorcycle.jpg\", \"publicId\": \"motorcycle\" }\n}" }, "url": "{{baseUrl}}/api/auth/register-delegate" } },
+        { "name": "Delegate Login", "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"phone\":\"9647711111111\",\"password\":\"Password123\"}" }, "url": "{{baseUrl}}/api/auth/delegate/login" } },
+        { "name": "Refresh Token", "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"refreshToken\":\"\"}" }, "url": "{{baseUrl}}/api/auth/refresh-token" } },
+        { "name": "List Active Centers", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/centers?page=1&limit=10" } },
+        { "name": "Center Details", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/centers/{{centerId}}" } },
+        { "name": "Public Center Services", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/centers/{{centerId}}/services" } }
+      ]
+    },
+    {
+      "name": "Shared Authenticated",
+      "item": [
+        { "name": "Logout", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"refreshToken\":\"\"}" }, "url": "{{baseUrl}}/api/auth/logout" } },
+        { "name": "Get Profile", "request": { "method": "GET", "url": "{{baseUrl}}/api/users/profile" } },
+        { "name": "Update Profile", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"Updated Name\",\"email\":\"updated@example.com\"}" }, "url": "{{baseUrl}}/api/users/profile" } },
+        { "name": "Change Password", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"currentPassword\":\"Password123\",\"newPassword\":\"NewPassword123\"}" }, "url": "{{baseUrl}}/api/users/change-password" } },
+        { "name": "List Addresses", "request": { "method": "GET", "url": "{{baseUrl}}/api/users/addresses" } },
+        { "name": "Add Address", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"label\":\"Home\",\"address\":\"Baghdad\",\"city\":\"Baghdad\",\"coordinates\":{\"lat\":33.31,\"lng\":44.36}}" }, "url": "{{baseUrl}}/api/users/addresses" } },
+        { "name": "Update Address", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"label\":\"Work\"}" }, "url": "{{baseUrl}}/api/users/addresses/:addressId" } },
+        { "name": "Delete Address", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/users/addresses/:addressId" } }
+      ]
+    },
+    {
+      "name": "Client",
+      "item": [
+        { "name": "Create Order (JSON version)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"device\": {\"type\":\"phone\",\"brand\":\"Apple\",\"model\":\"iPhone 14\",\"problemType\":\"screen\",\"problemDescription\":\"Broken screen\"},\n  \"pickupAddress\": {\"address\":\"Baghdad\",\"city\":\"Baghdad\"},\n  \"repairCenter\": \"{{centerId}}\"\n}" }, "url": "{{baseUrl}}/api/orders" } },
+        { "name": "List My Orders", "request": { "method": "GET", "url": "{{baseUrl}}/api/orders?page=1&limit=10" } },
+        { "name": "Order Details", "request": { "method": "GET", "url": "{{baseUrl}}/api/orders/{{orderId}}" } },
+        { "name": "Order Tracking", "request": { "method": "GET", "url": "{{baseUrl}}/api/orders/{{orderId}}/tracking" } },
+        { "name": "Order Status History", "request": { "method": "GET", "url": "{{baseUrl}}/api/orders/{{orderId}}/status-history" } },
+        { "name": "Cancel Order", "request": { "method": "PUT", "url": "{{baseUrl}}/api/orders/{{orderId}}/cancel" } },
+        { "name": "Approve Offer", "request": { "method": "PUT", "url": "{{baseUrl}}/api/orders/{{orderId}}/approve-offer" } },
+        { "name": "Reject Offer", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"note\":\"Too expensive\"}" }, "url": "{{baseUrl}}/api/orders/{{orderId}}/reject-offer" } },
+        { "name": "Rate Order", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"score\":5,\"comment\":\"Great service\"}" }, "url": "{{baseUrl}}/api/orders/{{orderId}}/rate" } },
+        { "name": "Get Inspection", "request": { "method": "GET", "url": "{{baseUrl}}/api/inspection/{{orderId}}" } },
+        { "name": "Get Price Offer", "request": { "method": "GET", "url": "{{baseUrl}}/api/price-offer/{{orderId}}" } },
+        { "name": "Get Payment", "request": { "method": "GET", "url": "{{baseUrl}}/api/orders/{{orderId}}/payment" } }
+      ]
+    },
+    {
+      "name": "Delegate",
+      "item": [
+        { "name": "My Tasks", "request": { "method": "GET", "url": "{{baseUrl}}/api/delegate/tasks" } },
+        { "name": "Task History", "request": { "method": "GET", "url": "{{baseUrl}}/api/delegate/tasks/history" } },
+        { "name": "Available Pickup Orders", "request": { "method": "GET", "url": "{{baseUrl}}/api/delegate/orders/available-pickup" } },
+        { "name": "Accept Pickup", "request": { "method": "PUT", "url": "{{baseUrl}}/api/delegate/orders/{{orderId}}/accept-pickup" } },
+        { "name": "Confirm Pickup", "request": { "method": "PUT", "url": "{{baseUrl}}/api/delegate/tasks/{{orderId}}/confirm-pickup" } },
+        { "name": "Confirm Drop at Center", "request": { "method": "PUT", "url": "{{baseUrl}}/api/delegate/tasks/{{orderId}}/confirm-drop-center" } },
+        { "name": "Available Delivery Orders", "request": { "method": "GET", "url": "{{baseUrl}}/api/delegate/orders/available-delivery" } },
+        { "name": "Accept Delivery", "request": { "method": "PUT", "url": "{{baseUrl}}/api/delegate/orders/{{orderId}}/accept-delivery" } },
+        { "name": "Confirm Delivery", "request": { "method": "PUT", "url": "{{baseUrl}}/api/delegate/tasks/{{orderId}}/confirm-delivery" } },
+        { "name": "Reject Task", "request": { "method": "PUT", "url": "{{baseUrl}}/api/delegate/tasks/{{orderId}}/reject" } }
+      ]
+    },
+    {
+      "name": "Center",
+      "item": [
+        { "name": "Center Orders", "request": { "method": "GET", "url": "{{baseUrl}}/api/centers/dashboard/orders?page=1&limit=10" } },
+        { "name": "Center Order Details", "request": { "method": "GET", "url": "{{baseUrl}}/api/centers/dashboard/orders/{{orderId}}" } },
+        { "name": "Update Order Status", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"status\":\"repairing\",\"note\":\"Repair started\"}" }, "url": "{{baseUrl}}/api/centers/dashboard/orders/{{orderId}}/status" } },
+        { "name": "Create Inspection (JSON version)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"technician\":\"Technician\",\"findings\":[{\"issue\":\"Screen damage\",\"severity\":\"major\"}],\"notes\":\"Replacement required\"}" }, "url": "{{baseUrl}}/api/centers/dashboard/orders/{{orderId}}/inspection" } },
+        { "name": "Create Price Offer", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"spareParts\":[{\"name\":\"Screen\",\"cost\":100}],\"laborCost\":25,\"inspectionFee\":10,\"deliveryFee\":5,\"estimatedDays\":2}" }, "url": "{{baseUrl}}/api/centers/dashboard/orders/{{orderId}}/price-offer" } },
+        { "name": "Center Stats", "request": { "method": "GET", "url": "{{baseUrl}}/api/centers/dashboard/stats" } },
+        { "name": "List Own Services", "request": { "method": "GET", "url": "{{baseUrl}}/api/center/services" } },
+        { "name": "Create Service", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"serviceName\":\"Screen Replacement\",\"price\":100,\"estimatedTime\":\"1 day\",\"warranty\":\"30 days\"}" }, "url": "{{baseUrl}}/api/center/services" } },
+        { "name": "Update Service", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"price\":110}" }, "url": "{{baseUrl}}/api/center/services/{{serviceId}}" } },
+        { "name": "Toggle Service", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/center/services/{{serviceId}}/toggle" } },
+        { "name": "Delete Service", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/center/services/{{serviceId}}" } }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        { "name": "List Users", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/users?role=client&page=1&limit=10" } },
+        { "name": "Update User Status", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"isActive\":true}" }, "url": "{{baseUrl}}/api/admin/users/{{userId}}/status" } },
+        { "name": "Delegate Applications", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/delegate-applications?status=pending" } },
+        { "name": "Approve Delegate Application", "request": { "method": "PUT", "url": "{{baseUrl}}/api/admin/delegate-applications/{{applicationId}}/approve" } },
+        { "name": "List Centers", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/centers?page=1&limit=10" } },
+        { "name": "Update Center Status", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"status\":\"active\"}" }, "url": "{{baseUrl}}/api/admin/centers/{{centerId}}/status" } },
+        { "name": "List Orders", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/orders?page=1&limit=10" } },
+        { "name": "List Payments", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/payments?status=waiting_confirmation" } },
+        { "name": "Review Payment", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"status\":\"confirmed\",\"notes\":\"Verified\"}" }, "url": "{{baseUrl}}/api/admin/payments/{{paymentId}}/review" } },
+        { "name": "Financial Settings", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/financial-settings" } },
+        { "name": "Update Financial Settings", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"walletOwnerName\":\"Platform\",\"walletNumber\":\"9647700000000\",\"commissionType\":\"percentage\",\"commissionValue\":10,\"delegateFeeType\":\"fixed\",\"delegateFeeValue\":5,\"currency\":\"IQD\"}" }, "url": "{{baseUrl}}/api/admin/financial-settings" } },
+        { "name": "Overview Stats", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/stats/overview" } },
+        { "name": "Revenue Stats", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/stats/revenue" } },
+        { "name": "Centers Stats", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/stats/centers" } },
+        { "name": "Delegates Stats", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/stats/delegates" } }
+      ]
+    }
+  ]
+}

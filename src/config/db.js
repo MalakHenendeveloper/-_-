@@ -1,4 +1,3 @@
-
 // module.exports = connectDB;
 const mongoose = require("mongoose");
 const config = require("./env");
@@ -14,6 +13,8 @@ const connectDB = async () => {
 
     const conn = await mongoose.connect(config.mongoose.url, {
       serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+      socketTimeoutMS: 10000,
     });
 
     mongoose.connection.on("connected", () => {

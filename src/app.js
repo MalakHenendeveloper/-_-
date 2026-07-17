@@ -36,7 +36,7 @@ if (config.env === "development") {
 // Rate limiting for auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 100,
   message: {
     success: false,
     message: "Too many authentication attempts, please try again later.",
@@ -48,7 +48,7 @@ const authLimiter = rateLimit({
 // Rate limiting for sensitive operations
 const sensitiveOperationsLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 100,
   message: {
     success: false,
     message: "Too many requests, please try again later.",
@@ -72,13 +72,6 @@ app.get("/health", (req, res) => {
   });
 });
 
-// MongoDB test endpoint
-// app.get("/db-test", async (req, res) => {
-//   return res.json({
-//     readyState: mongoose.connection.readyState,
-//     mongoConnected: mongoose.connection.readyState === 1,
-//   });
-// });
 
 app.get("/db-test", async (req, res) => {
   try {
