@@ -20,18 +20,18 @@ const PaymentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["zain_cash"],
+      enum: ["zain_cash", "western_union", "visa", "cash"],
       default: "zain_cash",
     },
     senderWalletNumber: {
       type: String,
       trim: true,
-      required: [true, "Sender wallet number is required"],
+      required: [true, "رقم المحفظة أو الحساب المرسل منه مطلوب"],
     },
     transferReference: {
       type: String,
       trim: true,
-      default: null,
+      required: [true, "رقم التحويل مطلوب"],
     },
     screenshot: {
       type: String,

@@ -11,25 +11,6 @@ const PriceOfferSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "RepairCenter",
     },
-    spareParts: [
-      {
-        name: { type: String },
-        cost: { type: Number },
-      },
-    ],
-    laborCost: {
-      type: Number,
-      required: [true, "Labor cost is required"],
-      min: 0,
-    },
-    inspectionFee: {
-      type: Number,
-      default: 0,
-    },
-    deliveryFee: {
-      type: Number,
-      default: 0,
-    },
     totalCost: {
       type: Number,
       required: [true, "Total cost is required"],

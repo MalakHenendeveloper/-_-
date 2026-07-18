@@ -5,9 +5,7 @@ const Settlement = require("../models/Settlement");
 const SystemSetting = require("../models/SystemSetting");
 const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
-const {
-  buildFinancialViewForRole,
-} = require("../utils/financialCalculator");
+const { buildFinancialViewForRole } = require("../utils/financialCalculator");
 
 // POST / - Create order (+ upload images)
 exports.createOrder = async (req, res, next) => {
@@ -376,6 +374,175 @@ exports.rateOrder = async (req, res, next) => {
     return ApiResponse.success(res, "تم تسجيل التقييم بنجاح", {
       rating: order.rating,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /:id/assign-pickup-delegate - Assign delegate for pickup
+exports.assignPickupDelegate = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      delegateId: Joi.string().hex().length(24).required(),
+    });
+
+    const { delegateId } = validate(schema, req.body);
+
+    // Only admin can assign delegates
+    if (req.user.role !== "admin") {
+      const err = new Error("غير مصرح لك بتعيين المندوبين");
+      err.statusCode = 403;
+      return next(err);
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      const err = new Error("الطلب غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    const delegate = await require("../models/User").findById(delegateId);
+    if (!delegate || delegate.role !== "delegate" || !delegate.isActive) {
+      const err = new Error("المندوب غير موجود أو غير فعال");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    order.pickupDelegate = delegateId;
+    await order.save();
+
+    return ApiResponse.success(res, "تم تعيين مندوب الاستلام بنجاح", { order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /:id/pickup-completed - Mark pickup as completed
+exports.pickupCompleted = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      const err = new Error("الطلب غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    if (
+      order.pickupDelegate.toString() !== req.user.id &&
+      req.user.role !== "admin"
+    ) {
+      const err = new Error("غير مصرح لك بتأكيد الاستلام");
+      err.statusCode = 403;
+      return next(err);
+    }
+
+    // Create settlement for pickup delegate
+    await Settlement.create({
+      order: order._id,
+      recipient: order.pickupDelegate,
+      recipientName: req.user.name || "Delegate",
+      recipientType: "delegate",
+      orderNumber: order.orderNumber,
+      amount: order.fees?.pickupFee || 0,
+      stage: "pickup",
+      paymentStatus: "pending",
+      status: "pending",
+    });
+
+    order.statusHistory.push({
+      status: order.status,
+      note: "تم تأكيد استلام الطلب من المندوب",
+      updatedBy: req.user.id,
+    });
+    await order.save();
+
+    return ApiResponse.success(res, "تم تأكيد الاستلام بنجاح", { order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /:id/assign-delivery-delegate - Assign delegate for delivery
+exports.assignDeliveryDelegate = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      delegateId: Joi.string().hex().length(24).required(),
+    });
+
+    const { delegateId } = validate(schema, req.body);
+
+    // Only admin can assign delegates
+    if (req.user.role !== "admin") {
+      const err = new Error("غير مصرح لك بتعيين المندوبين");
+      err.statusCode = 403;
+      return next(err);
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      const err = new Error("الطلب غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    const delegate = await require("../models/User").findById(delegateId);
+    if (!delegate || delegate.role !== "delegate" || !delegate.isActive) {
+      const err = new Error("المندوب غير موجود أو غير فعال");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    order.deliveryDelegate = delegateId;
+    await order.save();
+
+    return ApiResponse.success(res, "تم تعيين مندوب التسليم بنجاح", { order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /:id/delivery-completed - Mark delivery as completed
+exports.deliveryCompleted = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      const err = new Error("الطلب غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    if (
+      order.deliveryDelegate.toString() !== req.user.id &&
+      req.user.role !== "admin"
+    ) {
+      const err = new Error("غير مصرح لك بتأكيد التسليم");
+      err.statusCode = 403;
+      return next(err);
+    }
+
+    // Create settlement for delivery delegate
+    await Settlement.create({
+      order: order._id,
+      recipient: order.deliveryDelegate,
+      recipientName: req.user.name || "Delegate",
+      recipientType: "delegate",
+      orderNumber: order.orderNumber,
+      amount: order.fees?.deliveryFee || 0,
+      stage: "delivery",
+      paymentStatus: "pending",
+      status: "pending",
+    });
+
+    order.status = "delivered";
+    order.statusHistory.push({
+      status: "delivered",
+      note: "تم تأكيد تسليم الطلب للعميل",
+      updatedBy: req.user.id,
+    });
+    await order.save();
+
+    return ApiResponse.success(res, "تم تأكيد التسليم بنجاح", { order });
   } catch (error) {
     next(error);
   }

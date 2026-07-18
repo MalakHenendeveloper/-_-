@@ -55,6 +55,10 @@ router.get("/orders", adminController.getOrders);
 router.get("/orders/:id", adminController.getOrderById);
 // router.put("/orders/:id/assign-delegate", adminController.assignDelegate);
 
+// Payment settings
+router.get("/payment-settings", adminController.getPaymentSettings);
+router.put("/payment-settings", adminController.updatePaymentSettings);
+
 // Financial settings
 router.get("/financial-settings", adminController.getFinancialSettings);
 router.put("/financial-settings", adminController.updateFinancialSettings);

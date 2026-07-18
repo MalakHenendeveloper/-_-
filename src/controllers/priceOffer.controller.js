@@ -16,17 +16,7 @@ const {
 exports.createPriceOffer = async (req, res, next) => {
   try {
     const schema = Joi.object({
-      spareParts: Joi.array()
-        .items(
-          Joi.object({
-            name: Joi.string().required(),
-            cost: Joi.number().min(0).required(),
-          }),
-        )
-        .default([]),
-      laborCost: Joi.number().min(0).required(),
-      inspectionFee: Joi.number().min(0).default(0),
-      deliveryFee: Joi.number().min(0).default(0),
+      totalCost: Joi.number().min(0).required(),
       estimatedDays: Joi.number().min(0).optional(),
       notes: Joi.string().allow("").optional(),
     });
@@ -51,7 +41,6 @@ exports.createPriceOffer = async (req, res, next) => {
     }
 
     // FIX: Validate order status allows price offer creation
-    // Price offer should only be created when order is in "inspecting" or "at_center" status
     if (!["at_center", "inspecting"].includes(order.status)) {
       const err = new Error(
         `لا يمكن إنشاء عرض سعر للطلب في حالة ${order.status}. يجب أن يكون الطلب في الفحص أو في المركز`,
@@ -60,32 +49,40 @@ exports.createPriceOffer = async (req, res, next) => {
       return next(err);
     }
 
-    // Calculate total
-    const partsCost = body.spareParts.reduce((sum, p) => sum + p.cost, 0);
-    const totalCost =
-      partsCost + body.laborCost + body.inspectionFee + body.deliveryFee;
-
     // Delete any previous pending offer for this order
     await PriceOffer.deleteMany({ order: order._id, status: "pending" });
 
     const offer = new PriceOffer({
       order: order._id,
       repairCenter: center._id,
-      spareParts: body.spareParts,
-      laborCost: body.laborCost,
-      inspectionFee: body.inspectionFee,
-      deliveryFee: body.deliveryFee,
-      totalCost,
+      totalCost: body.totalCost,
       estimatedDays: body.estimatedDays,
       notes: body.notes,
     });
     await offer.save();
 
+    // Get system settings for fees
+    const settings = await SystemSetting.findOne({ key: "default" });
+    const pickupFee = settings?.delegateFeeValue || 0;
+    const deliveryFee = settings?.delegateFeeValue || 0;
+
+    // Calculate admin commission based on total repair cost
+    let adminCommission = 0;
+    if (settings?.commissionType === "percentage") {
+      adminCommission = Number(
+        ((body.totalCost * settings.commissionValue) / 100).toFixed(2),
+      );
+    } else {
+      adminCommission = Number(settings?.commissionValue || 0);
+    }
+
     // Update order fees and status
-    order.fees.repair = body.laborCost + partsCost;
-    order.fees.inspection = body.inspectionFee;
-    order.fees.delivery = body.deliveryFee;
-    order.fees.total = totalCost;
+    order.fees.totalRepairCost = body.totalCost;
+    order.fees.pickupFee = pickupFee;
+    order.fees.deliveryFee = deliveryFee;
+    order.fees.adminCommission = adminCommission;
+    order.fees.total =
+      body.totalCost + pickupFee + deliveryFee + adminCommission;
     order.status = "awaiting_approval";
     order.statusHistory.push({
       status: "awaiting_approval",
@@ -295,6 +292,14 @@ exports.getPaymentByOrder = async (req, res, next) => {
 
     return ApiResponse.success(res, "تفاصيل الدفع للطلب", {
       order,
+      paymentInfo: {
+        walletOwnerName: settings?.walletOwnerName || "",
+        walletNumber: settings?.walletNumber || "",
+        availablePaymentMethods: settings?.activePaymentMethods || [
+          "zain_cash",
+        ],
+        paymentInstructions: settings?.paymentInstructions || "",
+      },
       payment,
       financialView,
     });
@@ -306,8 +311,11 @@ exports.getPaymentByOrder = async (req, res, next) => {
 exports.submitPayment = async (req, res, next) => {
   try {
     const schema = Joi.object({
+      paymentMethod: Joi.string()
+        .valid("zain_cash", "western_union", "visa", "cash")
+        .required(),
       senderWalletNumber: Joi.string().trim().required(),
-      transferReference: Joi.string().trim().allow("").optional(),
+      transferReference: Joi.string().trim().required(),
       notes: Joi.string().trim().allow("").optional(),
     });
 
@@ -347,9 +355,9 @@ exports.submitPayment = async (req, res, next) => {
       order: order._id,
       client: req.user.id,
       amount: order.fees?.total || 0,
-      paymentMethod: "zain_cash",
+      paymentMethod: body.paymentMethod,
       senderWalletNumber: body.senderWalletNumber,
-      transferReference: body.transferReference || null,
+      transferReference: body.transferReference,
       screenshot,
       notes: body.notes || null,
       status: "waiting_confirmation",
@@ -368,6 +376,45 @@ exports.submitPayment = async (req, res, next) => {
     return ApiResponse.success(res, "تم استلام إثبات الدفع بنجاح", {
       payment,
       order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.addPaymentScreenshot = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      const err = new Error("الطلب غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    if (order.client.toString() !== req.user.id) {
+      const err = new Error("غير مصرح لك");
+      err.statusCode = 403;
+      return next(err);
+    }
+
+    const payment = await Payment.findOne({ order: order._id });
+    if (!payment) {
+      const err = new Error("لا توجد دفعة لهذا الطلب");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    if (!req.file) {
+      const err = new Error("يجب إرسال صورة");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    payment.screenshot = req.file.path || req.file.filename;
+    await payment.save();
+
+    return ApiResponse.success(res, "تم إضافة الصورة بنجاح", {
+      payment,
     });
   } catch (error) {
     next(error);

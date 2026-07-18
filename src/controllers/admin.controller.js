@@ -11,9 +11,7 @@ const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
 const CenterService = require("../models/CenterService");
 const Payment = require("../models/Payment");
-const {
-  buildFinancialViewForRole,
-} = require("../utils/financialCalculator");
+const { buildFinancialViewForRole } = require("../utils/financialCalculator");
 // GET /users - List all users with pagination
 exports.getUsers = async (req, res, next) => {
   try {
@@ -347,6 +345,71 @@ exports.getCenterById = async (req, res, next) => {
     next(error);
   }
 };
+// GET /payment-settings - Get admin payment settings
+exports.getPaymentSettings = async (req, res, next) => {
+  try {
+    let settings = await SystemSetting.findOne({ key: "default" });
+
+    if (!settings) {
+      settings = await SystemSetting.create({
+        key: "default",
+        currency: "IQD",
+        isActive: true,
+      });
+    }
+
+    return ApiResponse.success(res, "إعدادات الدفع", {
+      walletOwnerName: settings.walletOwnerName,
+      walletNumber: settings.walletNumber,
+      activePaymentMethods: settings.activePaymentMethods,
+      paymentInstructions: settings.paymentInstructions,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /payment-settings - Update admin payment settings
+exports.updatePaymentSettings = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      walletOwnerName: Joi.string().trim().required(),
+      walletNumber: Joi.string().trim().required(),
+      activePaymentMethods: Joi.array()
+        .items(Joi.string().valid("zain_cash", "western_union", "visa", "cash"))
+        .min(1)
+        .required(),
+      paymentInstructions: Joi.string().trim().required(),
+    });
+
+    const body = validate(schema, req.body);
+
+    let settings = await SystemSetting.findOne({ key: "default" });
+
+    if (!settings) {
+      settings = new SystemSetting({ key: "default" });
+    }
+
+    settings.walletOwnerName = body.walletOwnerName;
+    settings.walletNumber = body.walletNumber;
+    settings.activePaymentMethods = body.activePaymentMethods;
+    settings.paymentInstructions = body.paymentInstructions;
+    settings.updatedBy = req.user?._id || null;
+    settings.updatedAt = new Date();
+
+    await settings.save();
+
+    return ApiResponse.success(res, "تم تحديث إعدادات الدفع بنجاح", {
+      walletOwnerName: settings.walletOwnerName,
+      walletNumber: settings.walletNumber,
+      activePaymentMethods: settings.activePaymentMethods,
+      paymentInstructions: settings.paymentInstructions,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /financial-settings - Get admin financial settings
 exports.getFinancialSettings = async (req, res, next) => {
   try {

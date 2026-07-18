@@ -1,53 +1,23 @@
 async function calculateFinancials({
-  repairAmount = 0,
-  inspectionFee = 0,
+  totalRepairCost = 0,
+  pickupFee = 0,
   deliveryFee = 0,
-  settings = null,
+  adminCommission = 0,
 } = {}) {
-  const normalizedSettings = {
-    currency: settings?.currency || "IQD",
-    commissionType: settings?.commissionType || "percentage",
-    commissionValue: Number(settings?.commissionValue ?? 0),
-    delegateFeeType: settings?.delegateFeeType || "fixed",
-    delegateFeeValue: Number(settings?.delegateFeeValue ?? 0),
-  };
-
-  const repair = Number(Number(repairAmount || 0).toFixed(2));
-  const inspection = Number(Number(inspectionFee || 0).toFixed(2));
+  const repair = Number(Number(totalRepairCost || 0).toFixed(2));
+  const pickup = Number(Number(pickupFee || 0).toFixed(2));
   const delivery = Number(Number(deliveryFee || 0).toFixed(2));
-  const clientTotal = Number((repair + inspection + delivery).toFixed(2));
+  const admin = Number(Number(adminCommission || 0).toFixed(2));
 
-  let adminCommission = 0;
-  if (normalizedSettings.commissionType === "percentage") {
-    adminCommission = Number(
-      ((clientTotal * normalizedSettings.commissionValue) / 100).toFixed(2),
-    );
-  } else {
-    adminCommission = Number(normalizedSettings.commissionValue.toFixed(2));
-  }
-
-  let delegateFee = 0;
-  if (normalizedSettings.delegateFeeType === "percentage") {
-    delegateFee = Number(
-      ((delivery * normalizedSettings.delegateFeeValue) / 100).toFixed(2),
-    );
-  } else {
-    delegateFee = Number(normalizedSettings.delegateFeeValue.toFixed(2));
-  }
-
-  const centerAmount = Number(
-    (clientTotal - adminCommission - delegateFee).toFixed(2),
-  );
+  const clientTotal = Number((repair + pickup + delivery + admin).toFixed(2));
 
   return {
-    repairAmount: repair,
-    inspectionFee: inspection,
-    deliveryFee: delivery,
+    totalRepairCost: repair,
+    pickupFeeAmount: pickup,
+    deliveryFeeAmount: delivery,
+    adminCommissionAmount: admin,
     clientTotal,
-    adminCommission,
-    delegateFee,
-    centerAmount,
-    currency: normalizedSettings.currency,
+    currency: "IQD",
   };
 }
 
@@ -58,13 +28,19 @@ async function buildFinancialViewForRole({
   settings = null,
   settlements = [],
 } = {}) {
-  const financials = order?.financialSnapshot ||
-    (await calculateFinancials({
-      repairAmount: order?.fees?.repair || 0,
-      inspectionFee: order?.fees?.inspection || 0,
-      deliveryFee: order?.fees?.delivery || 0,
-      settings,
-    }));
+  // Extract fees from order or Settings
+  const totalRepairCost = order?.fees?.totalRepairCost || 0;
+  const pickupFee = order?.fees?.pickupFee || settings?.delegateFeeValue || 0;
+  const deliveryFee =
+    order?.fees?.deliveryFee || settings?.delegateFeeValue || 0;
+  const adminCommission = order?.fees?.adminCommission || 0;
+
+  const financials = await calculateFinancials({
+    totalRepairCost,
+    pickupFee,
+    deliveryFee,
+    adminCommission,
+  });
 
   const paymentDetails = payment
     ? {
@@ -87,7 +63,25 @@ async function buildFinancialViewForRole({
 
   if (role === "client") {
     return {
-      clientTotal: financials.clientTotal,
+      orderTotal: financials.clientTotal,
+      breakdown: {
+        repairCost: financials.totalRepairCost,
+        pickupFee: financials.pickupFeeAmount,
+        deliveryFee: financials.deliveryFeeAmount,
+        adminFee: financials.adminCommissionAmount,
+      },
+      payments: [
+        {
+          stage: "pickup",
+          description: "تكلفة استلام الجهاز",
+          amount: financials.pickupFeeAmount,
+        },
+        {
+          stage: "delivery",
+          description: "تكلفة توصيل الجهاز",
+          amount: financials.deliveryFeeAmount,
+        },
+      ],
       paymentStatus: order?.paymentStatus || "unpaid",
       currency: financials.currency,
       walletInfo,
@@ -97,7 +91,7 @@ async function buildFinancialViewForRole({
 
   if (role === "center") {
     return {
-      repairIncome: financials.repairAmount,
+      repairCost: financials.totalRepairCost,
       paymentStatus: order?.paymentStatus || "unpaid",
       currency: financials.currency,
       paymentDetails,
@@ -105,26 +99,35 @@ async function buildFinancialViewForRole({
   }
 
   if (role === "delegate") {
+    const pickupSettlement = settlements.find((s) => s.stage === "pickup");
+    const deliverySettlement = settlements.find((s) => s.stage === "delivery");
+
     return {
-      deliveryFee: financials.deliveryFee,
+      pickupFee: pickupSettlement?.amount || 0,
+      deliveryFee: deliverySettlement?.amount || 0,
       paymentStatus: order?.paymentStatus || "unpaid",
       currency: financials.currency,
       paymentDetails,
     };
   }
 
+  // Admin view - complete details
   return {
-    repairAmount: financials.repairAmount,
-    inspectionFee: financials.inspectionFee,
-    deliveryFee: financials.deliveryFee,
-    clientTotal: financials.clientTotal,
-    adminCommission: financials.adminCommission,
-    delegateFee: financials.delegateFee,
-    centerAmount: financials.centerAmount,
-    currency: financials.currency,
+    orderTotal: financials.clientTotal,
+    centerAmount: financials.totalRepairCost,
+    pickupDelegateAmount: financials.pickupFeeAmount,
+    deliveryDelegateAmount: financials.deliveryFeeAmount,
+    adminCommissionAmount: financials.adminCommissionAmount,
+    detailedBreakdown: {
+      repairCost: financials.totalRepairCost,
+      pickupFee: financials.pickupFeeAmount,
+      deliveryFee: financials.deliveryFeeAmount,
+      adminFee: financials.adminCommissionAmount,
+    },
+    settlements,
     paymentStatus: order?.paymentStatus || "unpaid",
     paymentDetails,
-    settlements,
+    currency: financials.currency,
   };
 }
 

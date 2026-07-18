@@ -1,0 +1,266 @@
+{
+  "info": {
+    "name": "Mobile Maintenance - Flow (Order → Offer → Pay → Settlements)",
+    "_postman_id": "generated-flow-001",
+    "description": "Collection to test the end-to-end flow: create order (client) → center creates price offer → client approves → client submits payment → admin reviews (confirm) → admin assigns pickup/delivery delegates → delegates confirm stages.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "adminToken", "value": "" },
+    { "key": "centerToken", "value": "" },
+    { "key": "clientToken", "value": "" },
+    { "key": "delegateToken", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "priceOfferId", "value": "" },
+    { "key": "paymentId", "value": "" },
+    { "key": "pickupDelegateId", "value": "" },
+    { "key": "deliveryDelegateId", "value": "" },
+    { "key": "repairCenterId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "(Admin) Create Repair Center + Owner",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "multipart/form-data" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "ownerName", "value": "Center Owner", "type": "text" },
+            { "key": "phone", "value": "07700000000", "type": "text" },
+            { "key": "email", "value": "center@example.com", "type": "text" },
+            { "key": "password", "value": "password123", "type": "text" },
+            { "key": "name", "value": "Test Repair Center", "type": "text" },
+            { "key": "address", "value": "123 Main St", "type": "text" },
+            { "key": "inspectionFee", "value": "5000", "type": "text" }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/centers",
+          "host": ["{{baseUrl}}"],
+          "path": ["centers"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "(Client) Create Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{clientToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"device\": {\n    \"type\": \"phone\",\n    \"brand\": \"iPhone\",\n    \"model\": \"13\",\n    \"problemType\": \"screen\",\n    \"problemDescription\": \"Screen broken\"\n  },\n  \"pickupAddress\": {\n    \"address\": \"Customer Street 1\",\n    \"city\": \"Baghdad\"\n  },\n  \"repairCenter\": \"{{repairCenterId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders",
+          "host": ["{{baseUrl}}"],
+          "path": ["orders"]
+        }
+      }
+    },
+    {
+      "name": "(Center) Create Price Offer",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{centerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"totalCost\": 100000,\n  \"estimatedDays\": 3,\n  \"notes\": \"Replacement + testing\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/centers/dashboard/orders/{{orderId}}/price-offer",
+          "host": ["{{baseUrl}}"],
+          "path": [
+            "centers",
+            "dashboard",
+            "orders",
+            "{{orderId}}",
+            "price-offer"
+          ]
+        }
+      }
+    },
+    {
+      "name": "(Client) Get Price Offer by Order",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/price-offer/{{orderId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["price-offer", "{{orderId}}"]
+        }
+      }
+    },
+    {
+      "name": "(Client) Approve Offer (via orders.approve-offer)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/approve-offer",
+          "host": ["{{baseUrl}}"],
+          "path": ["orders", "{{orderId}}", "approve-offer"]
+        }
+      }
+    },
+    {
+      "name": "(Client) Submit Payment (with optional screenshot)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{clientToken}}" },
+          { "key": "Content-Type", "value": "multipart/form-data" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "paymentMethod", "value": "zain_cash", "type": "text" },
+            {
+              "key": "senderWalletNumber",
+              "value": "07701234567",
+              "type": "text"
+            },
+            {
+              "key": "transferReference",
+              "value": "REF123456",
+              "type": "text"
+            },
+            { "key": "notes", "value": "Paid via agent", "type": "text" },
+            { "key": "screenshot", "type": "file", "src": "<choose file>" }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/payment",
+          "host": ["{{baseUrl}}"],
+          "path": ["orders", "{{orderId}}", "payment"]
+        }
+      }
+    },
+    {
+      "name": "(Client) Get Payment Info by Order",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/payment",
+          "host": ["{{baseUrl}}"],
+          "path": ["orders", "{{orderId}}", "payment"]
+        }
+      }
+    },
+    {
+      "name": "(Admin) Review Payment (confirm)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"status\": \"confirmed\"\n}" },
+        "url": {
+          "raw": "{{baseUrl}}/admin/payments/{{paymentId}}/review",
+          "host": ["{{baseUrl}}"],
+          "path": ["admin", "payments", "{{paymentId}}", "review"]
+        }
+      }
+    },
+    {
+      "name": "(Admin) Assign Pickup Delegate",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"delegateId\": \"{{pickupDelegateId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/assign-pickup-delegate",
+          "host": ["{{baseUrl}}"],
+          "path": ["orders", "{{orderId}}", "assign-pickup-delegate"]
+        }
+      }
+    },
+    {
+      "name": "(Delegate) Pickup Completed",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{delegateToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/pickup-completed",
+          "host": ["{{baseUrl}}"],
+          "path": ["orders", "{{orderId}}", "pickup-completed"]
+        }
+      }
+    },
+    {
+      "name": "(Admin) Assign Delivery Delegate",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"delegateId\": \"{{deliveryDelegateId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/assign-delivery-delegate",
+          "host": ["{{baseUrl}}"],
+          "path": ["orders", "{{orderId}}", "assign-delivery-delegate"]
+        }
+      }
+    },
+    {
+      "name": "(Delegate) Delivery Completed",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{delegateToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/delivery-completed",
+          "host": ["{{baseUrl}}"],
+          "path": ["orders", "{{orderId}}", "delivery-completed"]
+        }
+      }
+    },
+    {
+      "name": "(Admin) Get Settlements for Order (admin view)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/orders/{{orderId}}/payment",
+          "host": ["{{baseUrl}}"],
+          "path": ["orders", "{{orderId}}", "payment"]
+        }
+      }
+    }
+  ]
+}

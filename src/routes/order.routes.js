@@ -7,12 +7,30 @@ const upload = require("../middleware/upload.middleware");
 
 // All order routes require authentication
 router.use(protect);
+
+// Payment routes
 router.post(
   "/:id/payment",
   upload.single("screenshot"),
   priceOfferController.submitPayment,
 );
+router.post(
+  "/:id/payment/screenshot",
+  upload.single("screenshot"),
+  priceOfferController.addPaymentScreenshot,
+);
 router.get("/:id/payment", priceOfferController.getPaymentByOrder);
+
+// Delegate assignment routes
+router.put("/:id/assign-pickup-delegate", orderController.assignPickupDelegate);
+router.put("/:id/pickup-completed", orderController.pickupCompleted);
+router.put(
+  "/:id/assign-delivery-delegate",
+  orderController.assignDeliveryDelegate,
+);
+router.put("/:id/delivery-completed", orderController.deliveryCompleted);
+
+// Order routes
 router.post("/", upload.array("images", 5), orderController.createOrder);
 router.get("/", orderController.getClientOrders);
 router.get("/:id/status-history", orderController.getOrderStatusHistory);

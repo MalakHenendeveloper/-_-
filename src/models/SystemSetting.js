@@ -32,6 +32,11 @@ const SystemSettingSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    activePaymentMethods: {
+      type: [String],
+      enum: ["zain_cash", "western_union", "visa", "cash"],
+      default: ["zain_cash"],
+    },
     commissionType: {
       type: String,
       enum: ["percentage", "fixed"],

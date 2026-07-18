@@ -32,6 +32,16 @@ const SettlementSchema = new mongoose.Schema(
       required: [true, "Settlement amount is required"],
       min: 0,
     },
+    stage: {
+      type: String,
+      enum: ["pickup", "delivery", "repair", "admin"],
+      required: true,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid"],
+      default: "pending",
+    },
     status: {
       type: String,
       enum: ["pending", "processed", "paid", "failed"],
