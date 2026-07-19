@@ -530,68 +530,6 @@ exports.getOrders = async (req, res, next) => {
   }
 };
 
-// PUT /orders/:id/assign-delegate - Assign delegate to order
-// exports.assignDelegate = async (req, res, next) => {
-//   try {
-//     const schema = Joi.object({
-//       delegateId: Joi.string().hex().length(24).required(),
-//     });
-
-//     const { delegateId } = validate(schema, req.body);
-
-//     // FIX: Soft delete filter - only find non-deleted delegates
-//     const delegate = await User.findOne({
-//       _id: delegateId,
-//       role: "delegate",
-//       isDeleted: { $ne: true },
-//     });
-//     if (!delegate) {
-//       const err = new Error("المندوب غير موجود أو ليس لديه رول مندوب");
-//       err.statusCode = 404;
-//       return next(err);
-//     }
-
-//     // FIX: Validate delegate is active
-//     if (!delegate.isActive) {
-//       const err = new Error("المندوب غير فعال حالياً");
-//       err.statusCode = 400;
-//       return next(err);
-//     }
-
-//     const order = await Order.findById(req.params.id);
-//     if (!order) {
-//       const err = new Error("الطلب غير موجود");
-//       err.statusCode = 404;
-//       return next(err);
-//     }
-
-//     // FIX: Validate order status allows delegate assignment
-//     const validTransitions = Order.getValidTransitions(order.status);
-//     if (!validTransitions.includes("delegate_assigned")) {
-//       const err = new Error(
-//         `لا يمكن تعيين مندوب للطلب في حالة ${order.status}. الحالة الحالية: ${order.status}`,
-//       );
-//       err.statusCode = 400;
-//       return next(err);
-//     }
-
-//     order.delegate = delegateId;
-//     order.status = "delegate_assigned";
-//     order.statusHistory.push({
-//       status: "delegate_assigned",
-//       note: `تم تعيين المندوب: ${delegate.name}`,
-//       updatedBy: req.user.id,
-//     });
-
-//     await order.save();
-
-//     return ApiResponse.success(res, "تم تعيين المندوب للطلب بنجاح", { order });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// GET /delegates - List all delegates
 exports.getDelegates = async (req, res, next) => {
   try {
     const { page = 1, limit = 10 } = req.query;

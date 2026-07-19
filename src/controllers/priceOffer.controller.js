@@ -495,6 +495,7 @@ exports.reviewPayment = async (req, res, next) => {
             recipientType: "center",
             orderNumber: order.orderNumber,
             amount: order.financialSnapshot?.centerAmount || 0,
+            stage: "repair",
             status: "pending",
           });
         }
@@ -510,6 +511,7 @@ exports.reviewPayment = async (req, res, next) => {
             recipientType: "delegate",
             orderNumber: order.orderNumber,
             amount: order.financialSnapshot?.delegateFee || 0,
+            stage: "delivery",
             status: "pending",
           });
         }
@@ -523,6 +525,7 @@ exports.reviewPayment = async (req, res, next) => {
           recipientType: "admin",
           orderNumber: order.orderNumber,
           amount: order.financialSnapshot?.adminCommission || 0,
+          stage: "admin",
           status: "pending",
         });
       }
