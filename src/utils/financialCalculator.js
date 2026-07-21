@@ -56,7 +56,9 @@ async function buildFinancialViewForRole({
   const walletInfo = settings
     ? {
         walletOwnerName: settings.walletOwnerName || "",
-        walletNumber: settings.walletNumber || "",
+        walletNumbers: settings.walletNumbers
+          ? Object.fromEntries(settings.walletNumbers)
+          : {},
         paymentInstructions: settings.paymentInstructions || "",
       }
     : null;

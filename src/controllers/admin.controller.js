@@ -360,7 +360,9 @@ exports.getPaymentSettings = async (req, res, next) => {
 
     return ApiResponse.success(res, "إعدادات الدفع", {
       walletOwnerName: settings.walletOwnerName,
-      walletNumber: settings.walletNumber,
+      walletNumbers: settings.walletNumbers
+        ? Object.fromEntries(settings.walletNumbers)
+        : {},
       activePaymentMethods: settings.activePaymentMethods,
       paymentInstructions: settings.paymentInstructions,
     });
@@ -374,9 +376,30 @@ exports.updatePaymentSettings = async (req, res, next) => {
   try {
     const schema = Joi.object({
       walletOwnerName: Joi.string().trim().required(),
-      walletNumber: Joi.string().trim().required(),
+      walletNumbers: Joi.object()
+        .pattern(
+          Joi.string().valid(
+            "zain_cash",
+            "western_union",
+            "visa",
+            "cash",
+            "asia_pay",
+            "mastercard",
+          ),
+          Joi.string().trim(),
+        )
+        .optional(),
       activePaymentMethods: Joi.array()
-        .items(Joi.string().valid("zain_cash", "western_union", "visa", "cash"))
+        .items(
+          Joi.string().valid(
+            "zain_cash",
+            "western_union",
+            "visa",
+            "cash",
+            "asia_pay",
+            "mastercard",
+          ),
+        )
         .min(1)
         .required(),
       paymentInstructions: Joi.string().trim().required(),
@@ -391,7 +414,7 @@ exports.updatePaymentSettings = async (req, res, next) => {
     }
 
     settings.walletOwnerName = body.walletOwnerName;
-    settings.walletNumber = body.walletNumber;
+    settings.walletNumbers = body.walletNumbers || settings.walletNumbers || {};
     settings.activePaymentMethods = body.activePaymentMethods;
     settings.paymentInstructions = body.paymentInstructions;
     settings.updatedBy = req.user?._id || null;
@@ -401,7 +424,9 @@ exports.updatePaymentSettings = async (req, res, next) => {
 
     return ApiResponse.success(res, "تم تحديث إعدادات الدفع بنجاح", {
       walletOwnerName: settings.walletOwnerName,
-      walletNumber: settings.walletNumber,
+      walletNumbers: settings.walletNumbers
+        ? Object.fromEntries(settings.walletNumbers)
+        : {},
       activePaymentMethods: settings.activePaymentMethods,
       paymentInstructions: settings.paymentInstructions,
     });

@@ -20,7 +20,14 @@ const PaymentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["zain_cash", "western_union", "visa", "cash"],
+      enum: [
+        "zain_cash",
+        "western_union",
+        "visa",
+        "cash",
+        "asia_pay",
+        "mastercard",
+      ],
       default: "zain_cash",
     },
     senderWalletNumber: {

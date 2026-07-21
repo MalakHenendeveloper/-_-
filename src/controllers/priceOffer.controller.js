@@ -294,7 +294,9 @@ exports.getPaymentByOrder = async (req, res, next) => {
       order,
       paymentInfo: {
         walletOwnerName: settings?.walletOwnerName || "",
-        walletNumber: settings?.walletNumber || "",
+        walletNumbers: settings?.walletNumbers
+          ? Object.fromEntries(settings.walletNumbers)
+          : {},
         availablePaymentMethods: settings?.activePaymentMethods || [
           "zain_cash",
         ],
@@ -312,7 +314,14 @@ exports.submitPayment = async (req, res, next) => {
   try {
     const schema = Joi.object({
       paymentMethod: Joi.string()
-        .valid("zain_cash", "western_union", "visa", "cash")
+        .valid(
+          "zain_cash",
+          "western_union",
+          "visa",
+          "cash",
+          "asia_pay",
+          "mastercard",
+        )
         .required(),
       senderWalletNumber: Joi.string().trim().required(),
       transferReference: Joi.string().trim().required(),

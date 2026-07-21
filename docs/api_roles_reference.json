@@ -191,7 +191,7 @@
       "path": "/orders/:id/payment",
       "contentType": "multipart/form-data",
       "request": {
-        "paymentMethod": "zain_cash|western_union|visa|cash",
+        "paymentMethod": "zain_cash|western_union|visa|cash|asia_pay|mastercard",
         "senderWalletNumber": "string",
         "transferReference": "string",
         "screenshot": "file?",
@@ -529,8 +529,8 @@
       "path": "/admin/payment-settings",
       "request": {
         "walletOwnerName": "string",
-        "walletNumber": "string",
-        "activePaymentMethods": "[zain_cash|western_union|visa|cash]",
+        "walletNumbers": "{zain_cash?: string, western_union?: string, visa?: string, cash?: string, asia_pay?: string, mastercard?: string}",
+        "activePaymentMethods": "[zain_cash|western_union|visa|cash|asia_pay|mastercard]",
         "paymentInstructions": "string"
       },
       "purpose": "Update payment settings and active payment methods"
@@ -545,7 +545,6 @@
       "path": "/admin/financial-settings",
       "request": {
         "walletOwnerName": "string?",
-        "walletNumber": "string?",
         "paymentInstructions": "string?",
         "commissionType": "percentage|fixed?",
         "commissionValue": "number?",

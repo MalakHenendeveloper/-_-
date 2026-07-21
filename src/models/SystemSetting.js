@@ -22,10 +22,10 @@ const SystemSettingSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
-    walletNumber: {
-      type: String,
-      trim: true,
-      default: "",
+    walletNumbers: {
+      type: Map,
+      of: String,
+      default: {},
     },
     paymentInstructions: {
       type: String,
@@ -34,7 +34,14 @@ const SystemSettingSchema = new mongoose.Schema(
     },
     activePaymentMethods: {
       type: [String],
-      enum: ["zain_cash", "western_union", "visa", "cash"],
+      enum: [
+        "zain_cash",
+        "western_union",
+        "visa",
+        "cash",
+        "asia_pay",
+        "mastercard",
+      ],
       default: ["zain_cash"],
     },
     commissionType: {
