@@ -8,6 +8,10 @@ const upload = require("../middleware/upload.middleware");
 router.use(protect);
 router.use(authorize("admin"));
 
+router.get("/dashboard", adminController.getDashboard);
+router.get("/settlements", adminController.getSettlements);
+router.patch("/settlements/:id/pay", adminController.paySettlement);
+
 // Users management
 router.get("/users", adminController.getUsers);
 router.get("/users/:id", adminController.getUserById);

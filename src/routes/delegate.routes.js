@@ -8,6 +8,8 @@ const upload = require("../middleware/upload.middleware");
 router.use(protect);
 router.use(authorize("delegate", "admin"));
 
+router.get("/dashboard", delegateController.getDashboard);
+router.get("/settlements", delegateController.getSettlements);
 router.get("/tasks", delegateController.getTasks);
 router.get("/tasks/history", delegateController.getTaskHistory);
 router.get(

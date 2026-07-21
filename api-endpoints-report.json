@@ -1,0 +1,232 @@
+{
+  "title": "API Endpoints Report - Earnings, Settlements, and Dashboards",
+  "generatedAt": "2026-07-22",
+  "endpoints": [
+    {
+      "name": "Delegate Dashboard",
+      "method": "GET",
+      "path": "/api/delegate/dashboard",
+      "role": "delegate",
+      "description": "Returns delegate summary including total earnings, pending earnings, paid earnings, completed orders count, active orders count, recent settlements, and recent orders.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <token>"
+        },
+        "query": {}
+      },
+      "response": {
+        "success": true,
+        "message": "ملخص لوحة مندوب الاستلام والتسليم",
+        "data": {
+          "summary": {
+            "totalEarnings": 0,
+            "pendingEarnings": 0,
+            "paidEarnings": 0,
+            "completedOrdersCount": 0,
+            "activeOrdersCount": 0
+          },
+          "recentSettlements": [],
+          "recentOrders": []
+        }
+      }
+    },
+    {
+      "name": "Delegate Settlements",
+      "method": "GET",
+      "path": "/api/delegate/settlements",
+      "role": "delegate",
+      "description": "Lists settlements for the authenticated delegate with pagination, status filter, date range filter, and sort support.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <token>"
+        },
+        "query": {
+          "page": 1,
+          "limit": 10,
+          "status": "pending",
+          "dateFrom": "2026-01-01",
+          "dateTo": "2026-12-31",
+          "sort": "newest"
+        }
+      },
+      "response": {
+        "success": true,
+        "message": "قائمة تسويات المندوب",
+        "data": {
+          "settlements": []
+        },
+        "pagination": {
+          "total": 0,
+          "page": 1,
+          "limit": 10,
+          "pages": 0
+        }
+      }
+    },
+    {
+      "name": "Center Dashboard",
+      "method": "GET",
+      "path": "/api/centers/dashboard",
+      "role": "center",
+      "description": "Returns center summary including total revenue, pending revenue, paid revenue, completed orders count, active orders count, recent settlements, and recent orders.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <token>"
+        },
+        "query": {}
+      },
+      "response": {
+        "success": true,
+        "message": "ملخص لوحة مركز الصيانة",
+        "data": {
+          "summary": {
+            "totalRevenue": 0,
+            "pendingRevenue": 0,
+            "paidRevenue": 0,
+            "completedOrdersCount": 0,
+            "activeOrdersCount": 0
+          },
+          "recentSettlements": [],
+          "recentOrders": []
+        }
+      }
+    },
+    {
+      "name": "Center Settlements",
+      "method": "GET",
+      "path": "/api/centers/settlements",
+      "role": "center",
+      "description": "Lists settlements for the authenticated center with pagination, status filter, date range filter, and sort support.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <token>"
+        },
+        "query": {
+          "page": 1,
+          "limit": 10,
+          "status": "paid",
+          "dateFrom": "2026-01-01",
+          "dateTo": "2026-12-31",
+          "sort": "newest"
+        }
+      },
+      "response": {
+        "success": true,
+        "message": "قائمة تسويات مركز الصيانة",
+        "data": {
+          "settlements": []
+        },
+        "pagination": {
+          "total": 0,
+          "page": 1,
+          "limit": 10,
+          "pages": 0
+        }
+      }
+    },
+    {
+      "name": "Admin Dashboard",
+      "method": "GET",
+      "path": "/api/admin/dashboard",
+      "role": "admin",
+      "description": "Returns comprehensive admin dashboard covering orders, financial totals, user counts, and recent activity.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <token>"
+        },
+        "query": {}
+      },
+      "response": {
+        "success": true,
+        "message": "لوحة إحصائيات الإدارة",
+        "data": {
+          "orders": {
+            "totalOrders": 0,
+            "pendingOrders": 0,
+            "inProgressOrders": 0,
+            "completedOrders": 0,
+            "cancelledOrders": 0
+          },
+          "financial": {
+            "totalClientPayments": 0,
+            "totalCenterRevenue": 0,
+            "totalDelegateEarnings": 0,
+            "totalAdminCommission": 0,
+            "pendingSettlementsAmount": 0,
+            "paidSettlementsAmount": 0
+          },
+          "users": {
+            "totalClients": 0,
+            "totalDelegates": 0,
+            "totalCenters": 0
+          },
+          "recentActivity": {
+            "recentOrders": [],
+            "recentSettlements": []
+          }
+        }
+      }
+    },
+    {
+      "name": "Admin Settlements",
+      "method": "GET",
+      "path": "/api/admin/settlements",
+      "role": "admin",
+      "description": "Lists all settlements in the system with filters for recipient type, recipient, status, date range, order, and sort.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <token>"
+        },
+        "query": {
+          "page": 1,
+          "limit": 10,
+          "recipientType": "delegate",
+          "recipient": "<userId>",
+          "status": "pending",
+          "dateFrom": "2026-01-01",
+          "dateTo": "2026-12-31",
+          "order": "<orderId>",
+          "sort": "newest"
+        }
+      },
+      "response": {
+        "success": true,
+        "message": "قائمة تسويات النظام",
+        "data": {
+          "settlements": []
+        },
+        "pagination": {
+          "total": 0,
+          "page": 1,
+          "limit": 10,
+          "pages": 0
+        }
+      }
+    },
+    {
+      "name": "Admin Pay Settlement",
+      "method": "PATCH",
+      "path": "/api/admin/settlements/:id/pay",
+      "role": "admin",
+      "description": "Marks a pending settlement as paid and records paidAt and paidBy.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <token>"
+        },
+        "body": {}
+      },
+      "response": {
+        "success": true,
+        "message": "تم دفع التسوية بنجاح",
+        "data": {
+          "settlement": {
+            "paymentStatus": "paid",
+            "status": "paid",
+            "paidAt": "2026-07-22T00:00:00.000Z",
+            "paidBy": "<adminUserId>"
+          }
+        }
+      }
+    }
+  ]
+}

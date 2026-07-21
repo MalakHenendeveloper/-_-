@@ -6,6 +6,7 @@ const User = require("../models/User");
 // const sendSMS = require("../utils/sendSMS");
 const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
+const Settlement = require("../models/Settlement");
 
 // Helper: assert delegate owns this order
 async function getDelegateOrder(orderId, delegateId, next) {
@@ -21,6 +22,167 @@ async function getDelegateOrder(orderId, delegateId, next) {
   }
   return order;
 }
+
+const ACTIVE_ORDER_STATUSES = [
+  "delegate_assigned",
+  "picked_up",
+  "at_center",
+  "inspecting",
+  "awaiting_approval",
+  "approved",
+  "repairing",
+  "repaired",
+  "returning",
+];
+
+exports.getDashboard = async (req, res, next) => {
+  try {
+    const delegateId = req.user.id;
+
+    const [
+      settlements,
+      orders,
+      totalSettlements,
+      pendingSettlements,
+      paidSettlements,
+    ] = await Promise.all([
+      Settlement.find({ recipient: delegateId, recipientType: "delegate" })
+        .sort({ createdAt: -1 })
+        .limit(5),
+      Order.find({ delegate: delegateId })
+        .populate("client", "name phone")
+        .populate("repairCenter", "name")
+        .sort({ createdAt: -1 })
+        .limit(5),
+      Settlement.aggregate([
+        {
+          $match: { recipient: delegateId, recipientType: "delegate" },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
+      Settlement.aggregate([
+        {
+          $match: {
+            recipient: delegateId,
+            recipientType: "delegate",
+            $or: [{ paymentStatus: "pending" }, { status: "pending" }],
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
+      Settlement.aggregate([
+        {
+          $match: {
+            recipient: delegateId,
+            recipientType: "delegate",
+            $or: [{ paymentStatus: "paid" }, { status: "paid" }],
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
+    ]);
+
+    const totalEarnings = totalSettlements[0]?.total || 0;
+    const pendingEarnings = pendingSettlements[0]?.total || 0;
+    const paidEarnings = paidSettlements[0]?.total || 0;
+    const completedOrdersCount = await Order.countDocuments({
+      delegate: delegateId,
+      status: "delivered",
+    });
+    const activeOrdersCount = await Order.countDocuments({
+      delegate: delegateId,
+      status: { $in: ACTIVE_ORDER_STATUSES },
+    });
+
+    return ApiResponse.success(res, "ملخص لوحة مندوب الاستلام والتسليم", {
+      summary: {
+        totalEarnings,
+        pendingEarnings,
+        paidEarnings,
+        completedOrdersCount,
+        activeOrdersCount,
+      },
+      recentSettlements: settlements,
+      recentOrders: orders,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getSettlements = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      dateFrom,
+      dateTo,
+      sort = "newest",
+    } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter = {
+      recipient: req.user.id,
+      recipientType: "delegate",
+    };
+
+    if (status && ["pending", "paid"].includes(status)) {
+      filter.$or = [{ paymentStatus: status }, { status }];
+    }
+
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endDate;
+      }
+    }
+
+    const [total, settlements] = await Promise.all([
+      Settlement.countDocuments(filter),
+      Settlement.find(filter)
+        .populate("order", "orderNumber status")
+        .sort(sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+    ]);
+
+    return ApiResponse.success(
+      res,
+      "قائمة تسويات المندوب",
+      { settlements },
+      200,
+      {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    );
+  } catch (error) {
+    next(error);
+  }
+};
 
 // GET /tasks - Current & upcoming tasks
 exports.getTasks = async (req, res, next) => {

@@ -12,6 +12,18 @@ router.get("/", repairCenterController.getActiveCenters);
 
 // Authenticated Center-only dashboard routes
 router.get(
+  "/dashboard",
+  protect,
+  authorize("center", "admin"),
+  repairCenterController.getCenterDashboard,
+);
+router.get(
+  "/settlements",
+  protect,
+  authorize("center", "admin"),
+  repairCenterController.getCenterSettlements,
+);
+router.get(
   "/dashboard/orders",
   protect,
   authorize("center", "admin"),

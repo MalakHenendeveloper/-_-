@@ -510,22 +510,6 @@ exports.reviewPayment = async (req, res, next) => {
         }
       }
 
-      if (!existingTypes.has("delegate") && order.delegate) {
-        const delegateUser = await User.findById(order.delegate);
-        if (delegateUser) {
-          await Settlement.create({
-            order: order._id,
-            recipient: delegateUser._id,
-            recipientName: delegateUser.name,
-            recipientType: "delegate",
-            orderNumber: order.orderNumber,
-            amount: order.financialSnapshot?.delegateFee || 0,
-            stage: "delivery",
-            status: "pending",
-          });
-        }
-      }
-
       if (!existingTypes.has("admin")) {
         await Settlement.create({
           order: order._id,

@@ -12,6 +12,205 @@ const ApiResponse = require("../utils/apiResponse");
 const CenterService = require("../models/CenterService");
 const Payment = require("../models/Payment");
 const { buildFinancialViewForRole } = require("../utils/financialCalculator");
+
+exports.getDashboard = async (req, res, next) => {
+  try {
+    const [orders, settlements, clients, delegates, centers, payments] =
+      await Promise.all([
+        Order.countDocuments(),
+        Settlement.find({}).sort({ createdAt: -1 }).limit(5),
+        User.countDocuments({ role: "client", isDeleted: { $ne: true } }),
+        User.countDocuments({ role: "delegate", isDeleted: { $ne: true } }),
+        RepairCenter.countDocuments({ isDeleted: { $ne: true } }),
+        Payment.find({ status: "confirmed" }),
+      ]);
+
+    const pendingOrders = await Order.countDocuments({ status: "pending" });
+    const inProgressOrders = await Order.countDocuments({
+      status: {
+        $in: [
+          "delegate_assigned",
+          "picked_up",
+          "at_center",
+          "inspecting",
+          "awaiting_approval",
+          "approved",
+          "repairing",
+          "repaired",
+          "returning",
+        ],
+      },
+    });
+    const completedOrders = await Order.countDocuments({ status: "delivered" });
+    const cancelledOrders = await Order.countDocuments({ status: "cancelled" });
+
+    const totalClientPayments = payments.reduce(
+      (sum, payment) => sum + (payment.amount || 0),
+      0,
+    );
+    const totalCenterRevenue = await Settlement.aggregate([
+      { $match: { recipientType: "center" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const totalDelegateEarnings = await Settlement.aggregate([
+      { $match: { recipientType: "delegate" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const totalAdminCommission = await Settlement.aggregate([
+      { $match: { recipientType: "admin" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const pendingSettlements = await Settlement.aggregate([
+      {
+        $match: { $or: [{ paymentStatus: "pending" }, { status: "pending" }] },
+      },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const paidSettlements = await Settlement.aggregate([
+      { $match: { $or: [{ paymentStatus: "paid" }, { status: "paid" }] } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    const recentOrders = await Order.find({})
+      .populate("client", "name")
+      .populate("repairCenter", "name")
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    return ApiResponse.success(res, "لوحة إحصائيات الإدارة", {
+      orders: {
+        totalOrders: orders,
+        pendingOrders,
+        inProgressOrders,
+        completedOrders,
+        cancelledOrders,
+      },
+      financial: {
+        totalClientPayments,
+        totalCenterRevenue: totalCenterRevenue[0]?.total || 0,
+        totalDelegateEarnings: totalDelegateEarnings[0]?.total || 0,
+        totalAdminCommission: totalAdminCommission[0]?.total || 0,
+        pendingSettlementsAmount: pendingSettlements[0]?.total || 0,
+        paidSettlementsAmount: paidSettlements[0]?.total || 0,
+      },
+      users: {
+        totalClients: clients,
+        totalDelegates: delegates,
+        totalCenters: centers,
+      },
+      recentActivity: {
+        recentOrders,
+        recentSettlements: settlements,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getSettlements = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      recipientType,
+      recipient,
+      status,
+      dateFrom,
+      dateTo,
+      order,
+      sort = "newest",
+    } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter = {};
+
+    if (
+      recipientType &&
+      ["center", "delegate", "admin"].includes(recipientType)
+    ) {
+      filter.recipientType = recipientType;
+    }
+
+    if (recipient) {
+      filter.recipient = recipient;
+    }
+
+    if (status && ["pending", "processed", "paid", "failed"].includes(status)) {
+      filter.status = status;
+    }
+
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endDate;
+      }
+    }
+
+    if (order) {
+      filter.order = order;
+    }
+
+    const [total, settlements] = await Promise.all([
+      Settlement.countDocuments(filter),
+      Settlement.find(filter)
+        .populate("order", "orderNumber status")
+        .populate("recipient", "name email")
+        .sort(sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+    ]);
+
+    return ApiResponse.success(
+      res,
+      "قائمة تسويات النظام",
+      { settlements },
+      200,
+      {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.paySettlement = async (req, res, next) => {
+  try {
+    const settlement = await Settlement.findById(req.params.id);
+    if (!settlement) {
+      const err = new Error("التسوية غير موجودة");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    if (settlement.paymentStatus === "paid" || settlement.status === "paid") {
+      const err = new Error("هذه التسوية تم دفعها مسبقاً");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    settlement.paymentStatus = "paid";
+    settlement.status = "paid";
+    settlement.paidAt = new Date();
+    settlement.paidBy = req.user.id;
+    settlement.notes = settlement.notes || "";
+    await settlement.save();
+
+    return ApiResponse.success(res, "تم دفع التسوية بنجاح", { settlement });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /users - List all users with pagination
 exports.getUsers = async (req, res, next) => {
   try {

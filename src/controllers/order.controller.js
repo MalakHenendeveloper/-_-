@@ -437,18 +437,25 @@ exports.pickupCompleted = async (req, res, next) => {
       return next(err);
     }
 
-    // Create settlement for pickup delegate
-    await Settlement.create({
+    const existingPickupSettlement = await Settlement.findOne({
       order: order._id,
-      recipient: order.pickupDelegate,
-      recipientName: req.user.name || "Delegate",
       recipientType: "delegate",
-      orderNumber: order.orderNumber,
-      amount: order.fees?.pickupFee || 0,
       stage: "pickup",
-      paymentStatus: "pending",
-      status: "pending",
     });
+
+    if (!existingPickupSettlement) {
+      await Settlement.create({
+        order: order._id,
+        recipient: order.pickupDelegate,
+        recipientName: req.user.name || "Delegate",
+        recipientType: "delegate",
+        orderNumber: order.orderNumber,
+        amount: order.fees?.pickupFee || 0,
+        stage: "pickup",
+        paymentStatus: "pending",
+        status: "pending",
+      });
+    }
 
     order.statusHistory.push({
       status: order.status,
@@ -521,18 +528,25 @@ exports.deliveryCompleted = async (req, res, next) => {
       return next(err);
     }
 
-    // Create settlement for delivery delegate
-    await Settlement.create({
+    const existingDeliverySettlement = await Settlement.findOne({
       order: order._id,
-      recipient: order.deliveryDelegate,
-      recipientName: req.user.name || "Delegate",
       recipientType: "delegate",
-      orderNumber: order.orderNumber,
-      amount: order.fees?.deliveryFee || 0,
       stage: "delivery",
-      paymentStatus: "pending",
-      status: "pending",
     });
+
+    if (!existingDeliverySettlement) {
+      await Settlement.create({
+        order: order._id,
+        recipient: order.deliveryDelegate,
+        recipientName: req.user.name || "Delegate",
+        recipientType: "delegate",
+        orderNumber: order.orderNumber,
+        amount: order.fees?.deliveryFee || 0,
+        stage: "delivery",
+        paymentStatus: "pending",
+        status: "pending",
+      });
+    }
 
     order.status = "delivered";
     order.statusHistory.push({

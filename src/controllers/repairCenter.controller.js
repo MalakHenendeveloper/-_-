@@ -7,9 +7,8 @@ const ApiResponse = require("../utils/apiResponse");
 const validate = require("../utils/validator");
 const CenterService = require("../models/CenterService");
 const { canTransitionToStatus } = require("../utils/paymentUtils");
-const {
-  buildFinancialViewForRole,
-} = require("../utils/financialCalculator");
+const User = require("../models/User");
+const { buildFinancialViewForRole } = require("../utils/financialCalculator");
 
 // GET / - Public - List active repair centers with pagination
 exports.getActiveCenters = async (req, res, next) => {
@@ -59,6 +58,173 @@ exports.getCenterById = async (req, res, next) => {
       return next(err);
     }
     return ApiResponse.success(res, "تفاصيل مركز الصيانة", { center });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getCenterDashboard = async (req, res, next) => {
+  try {
+    const center = await RepairCenter.findOne({
+      owner: req.user.id,
+      isDeleted: { $ne: true },
+    });
+
+    if (!center) {
+      const err = new Error("لم يتم العثور على مركز صيانة مرتبط بهذا الحساب");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    const [
+      settlements,
+      orders,
+      totalSettlements,
+      pendingSettlements,
+      paidSettlements,
+    ] = await Promise.all([
+      Settlement.find({ recipient: req.user.id, recipientType: "center" })
+        .sort({ createdAt: -1 })
+        .limit(5),
+      Order.find({ repairCenter: center._id })
+        .populate("client", "name phone")
+        .populate("delegate", "name phone")
+        .sort({ createdAt: -1 })
+        .limit(5),
+      Settlement.aggregate([
+        {
+          $match: { recipient: req.user.id, recipientType: "center" },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
+      Settlement.aggregate([
+        {
+          $match: {
+            recipient: req.user.id,
+            recipientType: "center",
+            $or: [{ paymentStatus: "pending" }, { status: "pending" }],
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
+      Settlement.aggregate([
+        {
+          $match: {
+            recipient: req.user.id,
+            recipientType: "center",
+            $or: [{ paymentStatus: "paid" }, { status: "paid" }],
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
+    ]);
+
+    const completedOrdersCount = await Order.countDocuments({
+      repairCenter: center._id,
+      status: "delivered",
+    });
+    const activeOrdersCount = await Order.countDocuments({
+      repairCenter: center._id,
+      status: {
+        $in: [
+          "delegate_assigned",
+          "picked_up",
+          "at_center",
+          "inspecting",
+          "awaiting_approval",
+          "approved",
+          "repairing",
+          "repaired",
+          "returning",
+        ],
+      },
+    });
+
+    return ApiResponse.success(res, "ملخص لوحة مركز الصيانة", {
+      summary: {
+        totalRevenue: totalSettlements[0]?.total || 0,
+        pendingRevenue: pendingSettlements[0]?.total || 0,
+        paidRevenue: paidSettlements[0]?.total || 0,
+        completedOrdersCount,
+        activeOrdersCount,
+      },
+      recentSettlements: settlements,
+      recentOrders: orders,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getCenterSettlements = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      dateFrom,
+      dateTo,
+      sort = "newest",
+    } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter = {
+      recipient: req.user.id,
+      recipientType: "center",
+    };
+
+    if (status && ["pending", "paid"].includes(status)) {
+      filter.$or = [{ paymentStatus: status }, { status }];
+    }
+
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endDate;
+      }
+    }
+
+    const [total, settlements] = await Promise.all([
+      Settlement.countDocuments(filter),
+      Settlement.find(filter)
+        .populate("order", "orderNumber status")
+        .sort(sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+    ]);
+
+    return ApiResponse.success(
+      res,
+      "قائمة تسويات مركز الصيانة",
+      { settlements },
+      200,
+      {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    );
   } catch (error) {
     next(error);
   }
