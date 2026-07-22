@@ -68,6 +68,11 @@ const OrderSchema = new mongoose.Schema(
       delivery: { type: Number, default: 0 },
       repair: { type: Number, default: 0 },
       total: { type: Number, default: 0 },
+      // Additional normalized fee fields (kept for backward compatibility)
+      pickupFee: { type: Number, default: 0 },
+      deliveryFee: { type: Number, default: 0 },
+      adminCommission: { type: Number, default: 0 },
+      totalRepairCost: { type: Number, default: 0 },
     },
     status: {
       type: String,

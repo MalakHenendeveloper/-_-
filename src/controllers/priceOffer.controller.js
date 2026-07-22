@@ -76,10 +76,12 @@ exports.createPriceOffer = async (req, res, next) => {
       adminCommission = Number(settings?.commissionValue || 0);
     }
 
-    // Update order fees and status
+    // Update order fees and status (set both legacy and normalized fields)
     order.fees.totalRepairCost = body.totalCost;
+    order.fees.repair = body.totalCost;
     order.fees.pickupFee = pickupFee;
     order.fees.deliveryFee = deliveryFee;
+    order.fees.delivery = deliveryFee;
     order.fees.adminCommission = adminCommission;
     order.fees.total =
       body.totalCost + pickupFee + deliveryFee + adminCommission;
@@ -143,13 +145,31 @@ exports.approveOffer = async (req, res, next) => {
 
     if (!order.financialSnapshot) {
       const settings = await SystemSetting.findOne({ key: "default" });
+      const totalRepairCost =
+        order.fees?.totalRepairCost || order.fees?.repair || 0;
+      const pickupFeeVal = order.fees?.pickupFee || 0;
+      const deliveryFeeVal =
+        order.fees?.deliveryFee || order.fees?.delivery || 0;
+      const adminCommissionVal = order.fees?.adminCommission || 0;
+
       const financials = await calculateFinancials({
-        repairAmount: order.fees?.repair || 0,
-        inspectionFee: order.fees?.inspection || 0,
-        deliveryFee: order.fees?.delivery || 0,
-        settings,
+        totalRepairCost,
+        pickupFee: pickupFeeVal,
+        deliveryFee: deliveryFeeVal,
+        adminCommission: adminCommissionVal,
       });
-      order.financialSnapshot = financials;
+
+      // Normalize snapshot keys expected elsewhere in the codebase
+      order.financialSnapshot = {
+        repairAmount: financials.totalRepairCost,
+        inspectionFee: order.fees?.inspection || 0,
+        deliveryFee: financials.deliveryFeeAmount,
+        clientTotal: financials.clientTotal,
+        adminCommission: financials.adminCommissionAmount,
+        delegateFee: financials.pickupFeeAmount,
+        centerAmount: financials.totalRepairCost,
+        currency: financials.currency,
+      };
     }
 
     await order.save();
