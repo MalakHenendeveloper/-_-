@@ -7,7 +7,7 @@
       "method": "GET",
       "path": "/api/delegate/dashboard",
       "role": "delegate",
-      "description": "Returns delegate summary including total earnings, pending earnings, paid earnings, completed orders count, active orders count, recent settlements, and recent orders.",
+      "description": "Returns delegate summary including total earnings, pending earnings, paid earnings, completed orders count, current assigned orders count, recent settlements, and recent orders.",
       "request": {
         "headers": {
           "Authorization": "Bearer <token>"
@@ -23,10 +23,28 @@
             "pendingEarnings": 0,
             "paidEarnings": 0,
             "completedOrdersCount": 0,
-            "activeOrdersCount": 0
+            "currentAssignedOrdersCount": 0
           },
-          "recentSettlements": [],
-          "recentOrders": []
+          "recentSettlements": [
+            {
+              "id": "<settlementId>",
+              "amount": 100,
+              "stage": "delivery",
+              "status": "pending",
+              "recipientName": "Delegate Name",
+              "orderNumber": "ORD-20260722-ABC123",
+              "createdAt": "2026-07-22T00:00:00.000Z"
+            }
+          ],
+          "recentOrders": [
+            {
+              "id": "<orderId>",
+              "orderNumber": "ORD-20260722-ABC123",
+              "clientName": "Client Name",
+              "status": "pending",
+              "createdAt": "2026-07-22T00:00:00.000Z"
+            }
+          ]
         }
       }
     },
@@ -68,7 +86,7 @@
       "method": "GET",
       "path": "/api/centers/dashboard",
       "role": "center",
-      "description": "Returns center summary including total revenue, pending revenue, paid revenue, completed orders count, active orders count, recent settlements, and recent orders.",
+      "description": "Returns center summary including total revenue, pending revenue, paid revenue, completed orders count, current center orders count, recent settlements, and recent orders.",
       "request": {
         "headers": {
           "Authorization": "Bearer <token>"
@@ -84,10 +102,28 @@
             "pendingRevenue": 0,
             "paidRevenue": 0,
             "completedOrdersCount": 0,
-            "activeOrdersCount": 0
+            "currentCenterOrdersCount": 0
           },
-          "recentSettlements": [],
-          "recentOrders": []
+          "recentSettlements": [
+            {
+              "id": "<settlementId>",
+              "amount": 100,
+              "stage": "repair",
+              "status": "paid",
+              "recipientName": "Center Name",
+              "orderNumber": "ORD-20260722-ABC123",
+              "createdAt": "2026-07-22T00:00:00.000Z"
+            }
+          ],
+          "recentOrders": [
+            {
+              "id": "<orderId>",
+              "orderNumber": "ORD-20260722-ABC123",
+              "clientName": "Client Name",
+              "status": "repaired",
+              "createdAt": "2026-07-22T00:00:00.000Z"
+            }
+          ]
         }
       }
     },
@@ -149,6 +185,8 @@
           },
           "financial": {
             "totalClientPayments": 0,
+            "pendingClientPayments": 0,
+            "confirmedClientPayments": 0,
             "totalCenterRevenue": 0,
             "totalDelegateEarnings": 0,
             "totalAdminCommission": 0,
@@ -161,8 +199,26 @@
             "totalCenters": 0
           },
           "recentActivity": {
-            "recentOrders": [],
-            "recentSettlements": []
+            "recentOrders": [
+              {
+                "id": "<orderId>",
+                "orderNumber": "ORD-20260722-ABC123",
+                "clientName": "Client Name",
+                "status": "pending",
+                "createdAt": "2026-07-22T00:00:00.000Z"
+              }
+            ],
+            "recentSettlements": [
+              {
+                "id": "<settlementId>",
+                "amount": 100,
+                "stage": "delivery",
+                "status": "pending",
+                "recipientName": "Delegate Name",
+                "orderNumber": "ORD-20260722-ABC123",
+                "createdAt": "2026-07-22T00:00:00.000Z"
+              }
+            ]
           }
         }
       }
@@ -172,7 +228,7 @@
       "method": "GET",
       "path": "/api/admin/settlements",
       "role": "admin",
-      "description": "Lists all settlements in the system with filters for recipient type, recipient, status, date range, order, and sort.",
+      "description": "Lists all settlements in the system with filters for recipient type, recipient, status, date range, order, payment method, and sort.",
       "request": {
         "headers": {
           "Authorization": "Bearer <token>"
@@ -182,10 +238,12 @@
           "limit": 10,
           "recipientType": "delegate",
           "recipient": "<userId>",
+          "recipientId": "<userId>",
           "status": "pending",
           "dateFrom": "2026-01-01",
           "dateTo": "2026-12-31",
           "order": "<orderId>",
+          "paymentMethod": "cash",
           "sort": "newest"
         }
       },
@@ -200,6 +258,75 @@
           "page": 1,
           "limit": 10,
           "pages": 0
+        }
+      }
+    },
+    {
+      "name": "Admin Settlement Summary",
+      "method": "GET",
+      "path": "/api/admin/settlements/summary",
+      "role": "admin",
+      "description": "Returns a grouped settlement summary by recipient with pagination, recipient type filter, search, and sort support.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <token>"
+        },
+        "query": {
+          "page": 1,
+          "limit": 10,
+          "recipientType": "delegate",
+          "search": "ali",
+          "sortBy": "totalEarnings",
+          "sortOrder": "desc"
+        }
+      },
+      "response": {
+        "success": true,
+        "message": "ملخص التسويات المجمع حسب المستلم",
+        "data": {
+          "summaries": [
+            {
+              "recipientId": "<userId>",
+              "recipientName": "Ali",
+              "recipientType": "delegate",
+              "pendingAmount": 100,
+              "paidAmount": 200,
+              "pendingSettlementsCount": 1,
+              "paidSettlementsCount": 2,
+              "totalEarnings": 300
+            }
+          ]
+        },
+        "pagination": {
+          "total": 1,
+          "page": 1,
+          "limit": 10,
+          "pages": 1
+        }
+      }
+    },
+    {
+      "name": "Admin Bulk Pay Settlements",
+      "method": "PATCH",
+      "path": "/api/admin/settlements/pay",
+      "role": "admin",
+      "description": "Pays multiple settlements at once and records paidAt and paidBy while skipping already paid settlements.",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer <token>"
+        },
+        "body": {
+          "settlementIds": ["<settlementId1>", "<settlementId2>"]
+        }
+      },
+      "response": {
+        "success": true,
+        "message": "تم دفع التسويات المحددة بنجاح",
+        "data": {
+          "updatedCount": 1,
+          "skippedCount": 1,
+          "updatedIds": ["<settlementId1>"],
+          "skippedIds": ["<settlementId2>"]
         }
       }
     },

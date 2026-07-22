@@ -8,6 +8,29 @@ const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
 const Settlement = require("../models/Settlement");
 
+const buildRecentOrderPayload = (order) => ({
+  id: order._id,
+  _id: order._id,
+  orderId: order._id,
+  orderNumber: order.orderNumber,
+  clientName: order.client?.name || "",
+  status: order.status,
+  createdAt: order.createdAt,
+  repairCenterName: order.repairCenter?.name || null,
+});
+
+const buildRecentSettlementPayload = (settlement) => ({
+  id: settlement._id,
+  _id: settlement._id,
+  settlementId: settlement._id,
+  amount: settlement.amount,
+  stage: settlement.stage,
+  status: settlement.status,
+  recipientName: settlement.recipientName || settlement.recipient?.name || "",
+  orderNumber: settlement.orderNumber || settlement.order?.orderNumber || "",
+  createdAt: settlement.createdAt,
+});
+
 // Helper: assert delegate owns this order
 async function getDelegateOrder(orderId, delegateId, next) {
   const order = await Order.findOne({
@@ -47,6 +70,8 @@ exports.getDashboard = async (req, res, next) => {
       paidSettlements,
     ] = await Promise.all([
       Settlement.find({ recipient: delegateId, recipientType: "delegate" })
+        .populate("order", "orderNumber")
+        .populate("recipient", "name")
         .sort({ createdAt: -1 })
         .limit(5),
       Order.find({ delegate: delegateId })
@@ -115,10 +140,10 @@ exports.getDashboard = async (req, res, next) => {
         pendingEarnings,
         paidEarnings,
         completedOrdersCount,
-        activeOrdersCount,
+        currentAssignedOrdersCount: activeOrdersCount,
       },
-      recentSettlements: settlements,
-      recentOrders: orders,
+      recentSettlements: settlements.map(buildRecentSettlementPayload),
+      recentOrders: orders.map(buildRecentOrderPayload),
     });
   } catch (error) {
     next(error);

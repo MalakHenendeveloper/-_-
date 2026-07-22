@@ -13,16 +13,45 @@ const CenterService = require("../models/CenterService");
 const Payment = require("../models/Payment");
 const { buildFinancialViewForRole } = require("../utils/financialCalculator");
 
+const buildRecentOrderPayload = (order) => ({
+  id: order._id,
+  _id: order._id,
+  orderId: order._id,
+  orderNumber: order.orderNumber,
+  clientName: order.client?.name || "",
+  status: order.status,
+  createdAt: order.createdAt,
+  repairCenterName: order.repairCenter?.name || null,
+});
+
+const buildRecentSettlementPayload = (settlement) => ({
+  id: settlement._id,
+  _id: settlement._id,
+  settlementId: settlement._id,
+  amount: settlement.amount,
+  stage: settlement.stage,
+  status: settlement.status,
+  recipientName: settlement.recipientName || settlement.recipient?.name || "",
+  orderNumber: settlement.orderNumber || settlement.order?.orderNumber || "",
+  createdAt: settlement.createdAt,
+});
+
 exports.getDashboard = async (req, res, next) => {
   try {
     const [orders, settlements, clients, delegates, centers, payments] =
       await Promise.all([
         Order.countDocuments(),
-        Settlement.find({}).sort({ createdAt: -1 }).limit(5),
+        Settlement.find({})
+          .populate("order", "orderNumber")
+          .populate("recipient", "name")
+          .sort({ createdAt: -1 })
+          .limit(5),
         User.countDocuments({ role: "client", isDeleted: { $ne: true } }),
         User.countDocuments({ role: "delegate", isDeleted: { $ne: true } }),
         RepairCenter.countDocuments({ isDeleted: { $ne: true } }),
-        Payment.find({ status: "confirmed" }),
+        Payment.find({
+          status: { $in: ["waiting_confirmation", "confirmed"] },
+        }),
       ]);
 
     const pendingOrders = await Order.countDocuments({ status: "pending" });
@@ -48,6 +77,14 @@ exports.getDashboard = async (req, res, next) => {
       (sum, payment) => sum + (payment.amount || 0),
       0,
     );
+    const pendingClientPayments = await Payment.aggregate([
+      { $match: { status: "waiting_confirmation" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const confirmedClientPayments = await Payment.aggregate([
+      { $match: { status: "confirmed" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
     const totalCenterRevenue = await Settlement.aggregate([
       { $match: { recipientType: "center" } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
@@ -87,6 +124,8 @@ exports.getDashboard = async (req, res, next) => {
       },
       financial: {
         totalClientPayments,
+        pendingClientPayments: pendingClientPayments[0]?.total || 0,
+        confirmedClientPayments: confirmedClientPayments[0]?.total || 0,
         totalCenterRevenue: totalCenterRevenue[0]?.total || 0,
         totalDelegateEarnings: totalDelegateEarnings[0]?.total || 0,
         totalAdminCommission: totalAdminCommission[0]?.total || 0,
@@ -99,8 +138,8 @@ exports.getDashboard = async (req, res, next) => {
         totalCenters: centers,
       },
       recentActivity: {
-        recentOrders,
-        recentSettlements: settlements,
+        recentOrders: recentOrders.map(buildRecentOrderPayload),
+        recentSettlements: settlements.map(buildRecentSettlementPayload),
       },
     });
   } catch (error) {
@@ -115,10 +154,12 @@ exports.getSettlements = async (req, res, next) => {
       limit = 10,
       recipientType,
       recipient,
+      recipientId,
       status,
       dateFrom,
       dateTo,
       order,
+      paymentMethod,
       sort = "newest",
     } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
@@ -134,7 +175,9 @@ exports.getSettlements = async (req, res, next) => {
       filter.recipientType = recipientType;
     }
 
-    if (recipient) {
+    if (recipientId) {
+      filter.recipient = recipientId;
+    } else if (recipient) {
       filter.recipient = recipient;
     }
 
@@ -154,6 +197,10 @@ exports.getSettlements = async (req, res, next) => {
 
     if (order) {
       filter.order = order;
+    }
+
+    if (paymentMethod) {
+      filter.paymentMethod = paymentMethod;
     }
 
     const [total, settlements] = await Promise.all([
@@ -178,6 +225,242 @@ exports.getSettlements = async (req, res, next) => {
         pages: Math.ceil(total / limitNum),
       },
     );
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getSettlementSummary = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      recipientType,
+      search,
+      sortBy = "totalEarnings",
+      sortOrder = "desc",
+    } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    const skip = (pageNum - 1) * limitNum;
+
+    const matchFilter = {};
+    if (
+      recipientType &&
+      ["center", "delegate", "admin"].includes(recipientType)
+    ) {
+      matchFilter.recipientType = recipientType;
+    }
+
+    if (search) {
+      matchFilter.$or = [
+        { recipientName: { $regex: search, $options: "i" } },
+        { recipientType: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const sortFieldMap = {
+      recipientName: "recipientName",
+      pendingAmount: "pendingAmount",
+      paidAmount: "paidAmount",
+      pendingSettlementsCount: "pendingSettlementsCount",
+      paidSettlementsCount: "paidSettlementsCount",
+      totalEarnings: "totalEarnings",
+    };
+
+    const sortField = sortFieldMap[sortBy] || "totalEarnings";
+    const sortDirection = sortOrder === "asc" ? 1 : -1;
+
+    const basePipeline = [
+      { $match: matchFilter },
+      {
+        $lookup: {
+          from: "users",
+          localField: "recipient",
+          foreignField: "_id",
+          as: "recipientInfo",
+        },
+      },
+      {
+        $group: {
+          _id: {
+            recipient: "$recipient",
+            recipientType: "$recipientType",
+          },
+          recipientId: { $first: "$recipient" },
+          recipientType: { $first: "$recipientType" },
+          recipientName: {
+            $first: {
+              $cond: [
+                { $gt: [{ $size: "$recipientInfo" }, 0] },
+                { $arrayElemAt: ["$recipientInfo.name", 0] },
+                "$recipientName",
+              ],
+            },
+          },
+          pendingAmount: {
+            $sum: {
+              $cond: [
+                {
+                  $or: [
+                    { $eq: ["$paymentStatus", "pending"] },
+                    { $eq: ["$status", "pending"] },
+                  ],
+                },
+                "$amount",
+                0,
+              ],
+            },
+          },
+          paidAmount: {
+            $sum: {
+              $cond: [
+                {
+                  $or: [
+                    { $eq: ["$paymentStatus", "paid"] },
+                    { $eq: ["$status", "paid"] },
+                  ],
+                },
+                "$amount",
+                0,
+              ],
+            },
+          },
+          pendingSettlementsCount: {
+            $sum: {
+              $cond: [
+                {
+                  $or: [
+                    { $eq: ["$paymentStatus", "pending"] },
+                    { $eq: ["$status", "pending"] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          paidSettlementsCount: {
+            $sum: {
+              $cond: [
+                {
+                  $or: [
+                    { $eq: ["$paymentStatus", "paid"] },
+                    { $eq: ["$status", "paid"] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          totalEarnings: { $sum: "$amount" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          recipientId: 1,
+          recipientName: 1,
+          recipientType: 1,
+          pendingAmount: 1,
+          paidAmount: 1,
+          pendingSettlementsCount: 1,
+          paidSettlementsCount: 1,
+          totalEarnings: 1,
+        },
+      },
+      { $sort: { [sortField]: sortDirection } },
+    ];
+
+    const [summaries, totalResult] = await Promise.all([
+      Settlement.aggregate([
+        ...basePipeline,
+        { $skip: skip },
+        { $limit: limitNum },
+      ]),
+      Settlement.aggregate([...basePipeline, { $count: "count" }]),
+    ]);
+
+    const total = totalResult[0]?.count || 0;
+
+    return ApiResponse.success(
+      res,
+      "ملخص التسويات المجمع حسب المستلم",
+      { summaries },
+      200,
+      {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.bulkPaySettlements = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      settlementIds: Joi.array()
+        .items(Joi.string().hex().length(24))
+        .min(1)
+        .required(),
+    });
+
+    const { settlementIds } = validate(schema, req.body);
+
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+
+      const settlements = await Settlement.find({
+        _id: { $in: settlementIds },
+      }).session(session);
+
+      if (!settlements.length) {
+        const err = new Error("لم يتم العثور على تسويات مطابقة");
+        err.statusCode = 404;
+        throw err;
+      }
+
+      const updatedIds = [];
+      const skippedIds = [];
+
+      for (const settlement of settlements) {
+        if (
+          settlement.paymentStatus === "paid" ||
+          settlement.status === "paid"
+        ) {
+          skippedIds.push(settlement._id);
+          continue;
+        }
+
+        settlement.paymentStatus = "paid";
+        settlement.status = "paid";
+        settlement.paidAt = new Date();
+        settlement.paidBy = req.user.id;
+        settlement.notes = settlement.notes || "";
+        await settlement.save({ session });
+        updatedIds.push(settlement._id);
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return ApiResponse.success(res, "تم دفع التسويات المحددة بنجاح", {
+        updatedCount: updatedIds.length,
+        skippedCount: skippedIds.length,
+        updatedIds,
+        skippedIds,
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
   } catch (error) {
     next(error);
   }

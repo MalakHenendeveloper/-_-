@@ -10,6 +10,8 @@ router.use(authorize("admin"));
 
 router.get("/dashboard", adminController.getDashboard);
 router.get("/settlements", adminController.getSettlements);
+router.get("/settlements/summary", adminController.getSettlementSummary);
+router.patch("/settlements/pay", adminController.bulkPaySettlements);
 router.patch("/settlements/:id/pay", adminController.paySettlement);
 
 // Users management

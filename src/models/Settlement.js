@@ -17,6 +17,11 @@ const SettlementSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    paymentMethod: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     recipientType: {
       type: String,
       enum: ["center", "delegate", "admin"],

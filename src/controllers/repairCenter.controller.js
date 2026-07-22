@@ -10,6 +10,29 @@ const { canTransitionToStatus } = require("../utils/paymentUtils");
 const User = require("../models/User");
 const { buildFinancialViewForRole } = require("../utils/financialCalculator");
 
+const buildRecentOrderPayload = (order) => ({
+  id: order._id,
+  _id: order._id,
+  orderId: order._id,
+  orderNumber: order.orderNumber,
+  clientName: order.client?.name || "",
+  status: order.status,
+  createdAt: order.createdAt,
+  repairCenterName: order.repairCenter?.name || null,
+});
+
+const buildRecentSettlementPayload = (settlement) => ({
+  id: settlement._id,
+  _id: settlement._id,
+  settlementId: settlement._id,
+  amount: settlement.amount,
+  stage: settlement.stage,
+  status: settlement.status,
+  recipientName: settlement.recipientName || settlement.recipient?.name || "",
+  orderNumber: settlement.orderNumber || settlement.order?.orderNumber || "",
+  createdAt: settlement.createdAt,
+});
+
 // GET / - Public - List active repair centers with pagination
 exports.getActiveCenters = async (req, res, next) => {
   try {
@@ -84,6 +107,8 @@ exports.getCenterDashboard = async (req, res, next) => {
       paidSettlements,
     ] = await Promise.all([
       Settlement.find({ recipient: req.user.id, recipientType: "center" })
+        .populate("order", "orderNumber")
+        .populate("recipient", "name")
         .sort({ createdAt: -1 })
         .limit(5),
       Order.find({ repairCenter: center._id })
@@ -161,10 +186,10 @@ exports.getCenterDashboard = async (req, res, next) => {
         pendingRevenue: pendingSettlements[0]?.total || 0,
         paidRevenue: paidSettlements[0]?.total || 0,
         completedOrdersCount,
-        activeOrdersCount,
+        currentCenterOrdersCount: activeOrdersCount,
       },
-      recentSettlements: settlements,
-      recentOrders: orders,
+      recentSettlements: settlements.map(buildRecentSettlementPayload),
+      recentOrders: orders.map(buildRecentOrderPayload),
     });
   } catch (error) {
     next(error);
