@@ -498,50 +498,60 @@ exports.reviewPayment = async (req, res, next) => {
       const settings = await SystemSetting.findOne({ key: "default" });
       if (!order.financialSnapshot) {
         const financials = await calculateFinancials({
-          repairAmount: order.fees?.repair || 0,
-          inspectionFee: order.fees?.inspection || 0,
-          deliveryFee: order.fees?.delivery || 0,
-          settings,
+          totalRepairCost: order.fees?.totalRepairCost || order.fees?.repair || 0,
+          pickupFee: order.fees?.pickupFee || 0,
+          deliveryFee: order.fees?.deliveryFee || order.fees?.delivery || 0,
+          adminCommission: order.fees?.adminCommission || 0,
         });
         order.financialSnapshot = financials;
       }
 
-      const existingSettlements = await Settlement.find({ order: order._id });
-      const existingTypes = new Set(
-        existingSettlements.map((item) => item.recipientType),
-      );
-
-      if (!existingTypes.has("center") && order.repairCenter) {
+      // Use idempotent upserts to avoid duplicate settlements under retries/race
+      // Center settlement (stage: repair)
+      if (order.repairCenter) {
         const center = await RepairCenter.findById(order.repairCenter);
         const centerOwner = center?.owner
           ? await User.findById(center.owner)
           : null;
         if (centerOwner) {
-          await Settlement.create({
-            order: order._id,
-            recipient: centerOwner._id,
-            recipientName: centerOwner.name,
-            recipientType: "center",
-            orderNumber: order.orderNumber,
-            amount: order.financialSnapshot?.centerAmount || 0,
-            stage: "repair",
-            status: "pending",
-          });
+          await Settlement.findOneAndUpdate(
+            { order: order._id, recipientType: "center", stage: "repair" },
+            {
+              $setOnInsert: {
+                order: order._id,
+                recipient: centerOwner._id,
+                recipientName: centerOwner.name,
+                recipientType: "center",
+                orderNumber: order.orderNumber,
+                amount: order.financialSnapshot?.centerAmount || 0,
+                stage: "repair",
+                status: "pending",
+                paymentStatus: "pending",
+              },
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true },
+          );
         }
       }
 
-      if (!existingTypes.has("admin")) {
-        await Settlement.create({
-          order: order._id,
-          recipient: req.user.id,
-          recipientName: req.user.name || "Admin",
-          recipientType: "admin",
-          orderNumber: order.orderNumber,
-          amount: order.financialSnapshot?.adminCommission || 0,
-          stage: "admin",
-          status: "pending",
-        });
-      }
+      // Admin commission settlement (stage: admin)
+      await Settlement.findOneAndUpdate(
+        { order: order._id, recipientType: "admin", stage: "admin" },
+        {
+          $setOnInsert: {
+            order: order._id,
+            recipient: req.user.id,
+            recipientName: req.user.name || "Admin",
+            recipientType: "admin",
+            orderNumber: order.orderNumber,
+            amount: order.financialSnapshot?.adminCommission || 0,
+            stage: "admin",
+            status: "pending",
+            paymentStatus: "pending",
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
     }
 
     await order.save();

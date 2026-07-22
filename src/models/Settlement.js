@@ -76,4 +76,11 @@ SettlementSchema.index({ order: 1, status: 1 });
 SettlementSchema.index({ recipientType: 1, status: 1 });
 SettlementSchema.index({ createdAt: -1 });
 
+// Prevent duplicate settlements for the same order/recipientType/stage
+// This is a compound unique index to enforce uniqueness at the DB level
+SettlementSchema.index(
+  { order: 1, recipientType: 1, stage: 1 },
+  { unique: true, sparse: true },
+);
+
 module.exports = mongoose.model("Settlement", SettlementSchema);
