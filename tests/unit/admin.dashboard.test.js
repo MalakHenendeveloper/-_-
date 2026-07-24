@@ -15,6 +15,7 @@ jest.mock("../../src/models/Order", () => ({
 
 jest.mock("../../src/models/User", () => ({
   countDocuments: jest.fn(),
+  find: jest.fn(),
 }));
 
 jest.mock("../../src/models/RepairCenter", () => ({
@@ -40,6 +41,12 @@ describe("Admin dashboard financial breakdown", () => {
 
     Order.countDocuments.mockResolvedValue(2);
     User.countDocuments.mockResolvedValue(3);
+    User.find.mockReturnValue({
+      select: jest.fn().mockResolvedValue([
+        { _id: "delegate-1", name: "Ahmed" },
+        { _id: "delegate-2", name: "Mona" },
+      ]),
+    });
     RepairCenter.countDocuments.mockResolvedValue(2);
     Payment.find.mockResolvedValue([{ amount: 100 }, { amount: 200 }]);
     Payment.aggregate.mockResolvedValue([{ total: 300 }]);

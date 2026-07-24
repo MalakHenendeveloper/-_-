@@ -109,6 +109,16 @@ exports.getDashboard = async (req, res, next) => {
       return acc;
     }, {});
 
+    const delegateNameMap = new Map();
+    const delegateUsers = await User.find({
+      role: "delegate",
+      isDeleted: { $ne: true },
+    }).select("_id name");
+
+    delegateUsers.forEach((user) => {
+      delegateNameMap.set(String(user._id), user.name || "مندوب");
+    });
+
     const delegateBreakdown = allOrders.reduce((acc, order) => {
       const pickupDelegateId = order?.earnings?.pickup?.delegate || null;
       const deliveryDelegateId = order?.earnings?.delivery?.delegate || null;
@@ -119,7 +129,7 @@ exports.getDashboard = async (req, res, next) => {
         if (!acc[key]) {
           acc[key] = {
             delegateId: key,
-            name: "مندوب",
+            name: delegateNameMap.get(key) || "مندوب",
             earnings: 0,
             completedTrips: 0,
           };
