@@ -1,7 +1,6 @@
 const Joi = require("joi");
 const RepairCenter = require("../models/RepairCenter");
 const Order = require("../models/Order");
-const Settlement = require("../models/Settlement");
 const SystemSetting = require("../models/SystemSetting");
 const ApiResponse = require("../utils/apiResponse");
 const validate = require("../utils/validator");
@@ -9,6 +8,9 @@ const CenterService = require("../models/CenterService");
 const { canTransitionToStatus } = require("../utils/paymentUtils");
 const User = require("../models/User");
 const { buildFinancialViewForRole } = require("../utils/financialCalculator");
+const {
+  calculateRoleFinancialSummary,
+} = require("../utils/dashboardFinancials");
 
 const buildRecentOrderPayload = (order) => ({
   id: order._id,
@@ -19,18 +21,6 @@ const buildRecentOrderPayload = (order) => ({
   status: order.status,
   createdAt: order.createdAt,
   repairCenterName: order.repairCenter?.name || null,
-});
-
-const buildRecentSettlementPayload = (settlement) => ({
-  id: settlement._id,
-  _id: settlement._id,
-  settlementId: settlement._id,
-  amount: settlement.amount,
-  stage: settlement.stage,
-  status: settlement.status,
-  recipientName: settlement.recipientName || settlement.recipient?.name || "",
-  orderNumber: settlement.orderNumber || settlement.order?.orderNumber || "",
-  createdAt: settlement.createdAt,
 });
 
 // GET / - Public - List active repair centers with pagination
@@ -99,157 +89,27 @@ exports.getCenterDashboard = async (req, res, next) => {
       return next(err);
     }
 
-    const [
-      settlements,
-      orders,
-      totalSettlements,
-      pendingSettlements,
-      paidSettlements,
-    ] = await Promise.all([
-      Settlement.find({ recipient: req.user.id, recipientType: "center" })
-        .populate("order", "orderNumber")
-        .populate("recipient", "name")
-        .sort({ createdAt: -1 })
-        .limit(5),
-      Order.find({ repairCenter: center._id })
-        .populate("client", "name phone")
-        .populate("delegate", "name phone")
-        .sort({ createdAt: -1 })
-        .limit(5),
-      Settlement.aggregate([
-        {
-          $match: { recipient: req.user.id, recipientType: "center" },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: "$amount" },
-          },
-        },
-      ]),
-      Settlement.aggregate([
-        {
-          $match: {
-            recipient: req.user.id,
-            recipientType: "center",
-            $or: [{ paymentStatus: "pending" }, { status: "pending" }],
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: "$amount" },
-          },
-        },
-      ]),
-      Settlement.aggregate([
-        {
-          $match: {
-            recipient: req.user.id,
-            recipientType: "center",
-            $or: [{ paymentStatus: "paid" }, { status: "paid" }],
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: "$amount" },
-          },
-        },
-      ]),
-    ]);
+    const orders = await Order.find({ repairCenter: center._id })
+      .populate("client", "name phone")
+      .populate("delegate", "name phone")
+      .sort({ createdAt: -1 });
 
-    const completedOrdersCount = await Order.countDocuments({
-      repairCenter: center._id,
-      status: "delivered",
-    });
-    const activeOrdersCount = await Order.countDocuments({
-      repairCenter: center._id,
-      status: {
-        $in: [
-          "delegate_assigned",
-          "picked_up",
-          "at_center",
-          "inspecting",
-          "awaiting_approval",
-          "approved",
-          "repairing",
-          "repaired",
-          "returning",
-        ],
-      },
+    const financialSummary = calculateRoleFinancialSummary({
+      role: "center",
+      orders: orders.map((order) => ({
+        ...order.toObject(),
+        status: order.status,
+      })),
     });
 
     return ApiResponse.success(res, "ملخص لوحة مركز الصيانة", {
       summary: {
-        totalRevenue: totalSettlements[0]?.total || 0,
-        pendingRevenue: pendingSettlements[0]?.total || 0,
-        paidRevenue: paidSettlements[0]?.total || 0,
-        completedOrdersCount,
-        currentCenterOrdersCount: activeOrdersCount,
+        totalRevenue: financialSummary.totalRevenue,
+        completedOrdersCount: financialSummary.completedOrdersCount,
+        currentCenterOrdersCount: financialSummary.currentCenterOrdersCount,
       },
-      recentSettlements: settlements.map(buildRecentSettlementPayload),
       recentOrders: orders.map(buildRecentOrderPayload),
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.getCenterSettlements = async (req, res, next) => {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      dateFrom,
-      dateTo,
-      sort = "newest",
-    } = req.query;
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
-    const skip = (pageNum - 1) * limitNum;
-
-    const filter = {
-      recipient: req.user.id,
-      recipientType: "center",
-    };
-
-    if (status && ["pending", "paid"].includes(status)) {
-      filter.$or = [{ paymentStatus: status }, { status }];
-    }
-
-    if (dateFrom || dateTo) {
-      filter.createdAt = {};
-      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) {
-        const endDate = new Date(dateTo);
-        endDate.setHours(23, 59, 59, 999);
-        filter.createdAt.$lte = endDate;
-      }
-    }
-
-    const [total, settlements] = await Promise.all([
-      Settlement.countDocuments(filter),
-      Settlement.find(filter)
-        .populate("order", "orderNumber status")
-        .sort(sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum),
-    ]);
-
-    return ApiResponse.success(
-      res,
-      "قائمة تسويات مركز الصيانة",
-      { settlements },
-      200,
-      {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        pages: Math.ceil(total / limitNum),
-      },
-    );
   } catch (error) {
     next(error);
   }
@@ -538,12 +398,12 @@ exports.getCenterStats = async (req, res, next) => {
         $group: {
           _id: null,
           totalOrders: { $sum: 1 },
-          // Calculate total revenue (paid orders only)
+          // Center earnings are recorded only after payment confirmation.
           paidRevenue: {
             $sum: {
               $cond: [
-                { $eq: ["$paymentStatus", "confirmed"] },
-                { $ifNull: ["$fees.total", 0] },
+                { $eq: ["$earnings.center.recorded", true] },
+                { $ifNull: ["$earnings.center.amount", 0] },
                 0,
               ],
             },

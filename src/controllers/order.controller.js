@@ -1,7 +1,6 @@
 const Joi = require("joi");
 const Order = require("../models/Order");
 const RepairCenter = require("../models/RepairCenter");
-const Settlement = require("../models/Settlement");
 const SystemSetting = require("../models/SystemSetting");
 const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
@@ -156,14 +155,10 @@ exports.getOrderById = async (req, res, next) => {
     }
 
     const settings = await SystemSetting.findOne({ key: "default" });
-    const settlements = isAdmin
-      ? await Settlement.find({ order: order._id }).sort({ createdAt: -1 })
-      : [];
     const financialView = await buildFinancialViewForRole({
       role: req.user.role,
       order,
       settings,
-      settlements,
     });
 
     return ApiResponse.success(res, "تفاصيل الطلب", { order, financialView });
@@ -437,24 +432,16 @@ exports.pickupCompleted = async (req, res, next) => {
       return next(err);
     }
 
-    const existingPickupSettlement = await Settlement.findOne({
-      order: order._id,
-      recipientType: "delegate",
-      stage: "pickup",
-    });
-
-    if (!existingPickupSettlement) {
-      await Settlement.create({
-        order: order._id,
-        recipient: order.pickupDelegate,
-        recipientName: req.user.name || "Delegate",
-        recipientType: "delegate",
-        orderNumber: order.orderNumber,
+    if (!order.earnings?.pickup?.recorded) {
+      order.earnings = order.earnings || {};
+      order.earnings.pickup = {
+        ...(order.earnings.pickup || {}),
+        recorded: true,
         amount: order.fees?.pickupFee || 0,
-        stage: "pickup",
-        paymentStatus: "pending",
-        status: "pending",
-      });
+        recordedAt: new Date(),
+        delegate: order.pickupDelegate,
+      };
+      await order.save();
     }
 
     order.statusHistory.push({
@@ -528,24 +515,16 @@ exports.deliveryCompleted = async (req, res, next) => {
       return next(err);
     }
 
-    const existingDeliverySettlement = await Settlement.findOne({
-      order: order._id,
-      recipientType: "delegate",
-      stage: "delivery",
-    });
-
-    if (!existingDeliverySettlement) {
-      await Settlement.create({
-        order: order._id,
-        recipient: order.deliveryDelegate,
-        recipientName: req.user.name || "Delegate",
-        recipientType: "delegate",
-        orderNumber: order.orderNumber,
+    if (!order.earnings?.delivery?.recorded) {
+      order.earnings = order.earnings || {};
+      order.earnings.delivery = {
+        ...(order.earnings.delivery || {}),
+        recorded: true,
         amount: order.fees?.deliveryFee || 0,
-        stage: "delivery",
-        paymentStatus: "pending",
-        status: "pending",
-      });
+        recordedAt: new Date(),
+        delegate: order.deliveryDelegate,
+      };
+      await order.save();
     }
 
     order.status = "delivered";

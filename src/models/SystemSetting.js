@@ -54,11 +54,6 @@ const SystemSettingSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    delegateFeeType: {
-      type: String,
-      enum: ["percentage", "fixed"],
-      default: "fixed",
-    },
     delegateFeeValue: {
       type: Number,
       default: 0,

@@ -103,7 +103,7 @@
         { "name": "List Payments", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/payments?status=waiting_confirmation" } },
         { "name": "Review Payment", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"status\":\"confirmed\",\"notes\":\"Verified\"}" }, "url": "{{baseUrl}}/api/admin/payments/{{paymentId}}/review" } },
         { "name": "Financial Settings", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/financial-settings" } },
-        { "name": "Update Financial Settings", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"walletOwnerName\":\"Platform\",\"walletNumber\":\"9647700000000\",\"commissionType\":\"percentage\",\"commissionValue\":10,\"delegateFeeType\":\"fixed\",\"delegateFeeValue\":5,\"currency\":\"IQD\"}" }, "url": "{{baseUrl}}/api/admin/financial-settings" } },
+        { "name": "Update Financial Settings", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"walletOwnerName\":\"Platform\",\"walletNumber\":\"9647700000000\",\"commissionType\":\"percentage\",\"commissionValue\":10,\"delegateFeeValue\":5,\"currency\":\"IQD\"}" }, "url": "{{baseUrl}}/api/admin/financial-settings" } },
         { "name": "Overview Stats", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/stats/overview" } },
         { "name": "Revenue Stats", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/stats/revenue" } },
         { "name": "Centers Stats", "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/stats/centers" } },

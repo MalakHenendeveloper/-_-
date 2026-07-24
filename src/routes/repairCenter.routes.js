@@ -18,12 +18,6 @@ router.get(
   repairCenterController.getCenterDashboard,
 );
 router.get(
-  "/settlements",
-  protect,
-  authorize("center", "admin"),
-  repairCenterController.getCenterSettlements,
-);
-router.get(
   "/dashboard/orders",
   protect,
   authorize("center", "admin"),

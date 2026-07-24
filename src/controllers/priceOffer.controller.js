@@ -6,12 +6,12 @@ const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
 const Payment = require("../models/Payment");
 const SystemSetting = require("../models/SystemSetting");
-const Settlement = require("../models/Settlement");
 const User = require("../models/User");
 const {
   calculateFinancials,
   buildFinancialViewForRole,
 } = require("../utils/financialCalculator");
+const { getDelegateTripFee } = require("../utils/delegateFees");
 // POST /api/centers/dashboard/orders/:orderId/price-offer  (center)
 exports.createPriceOffer = async (req, res, next) => {
   try {
@@ -61,10 +61,14 @@ exports.createPriceOffer = async (req, res, next) => {
     });
     await offer.save();
 
-    // Get system settings for fees
+    // Pickup was already earned when the device reached the center. A quote
+    // must never replace that recorded trip. Delivery is only a quoted client
+    // charge here; its delegate earning is recorded at confirm-delivery.
     const settings = await SystemSetting.findOne({ key: "default" });
-    const pickupFee = settings?.delegateFeeValue || 0;
-    const deliveryFee = settings?.delegateFeeValue || 0;
+    const pickupFee = Number(order.fees?.pickupFee || 0);
+    const deliveryFee = Number(
+      order.fees?.deliveryFee || (await getDelegateTripFee({ settings })),
+    );
 
     // Calculate admin commission based on total repair cost
     let adminCommission = 0;
@@ -79,7 +83,7 @@ exports.createPriceOffer = async (req, res, next) => {
     // Update order fees and status (set both legacy and normalized fields)
     order.fees.totalRepairCost = body.totalCost;
     order.fees.repair = body.totalCost;
-    order.fees.pickupFee = pickupFee;
+    // Preserve the pickup trip fee recorded by confirm-drop-center.
     order.fees.deliveryFee = deliveryFee;
     order.fees.delivery = deliveryFee;
     order.fees.adminCommission = adminCommission;
@@ -298,16 +302,11 @@ exports.getPaymentByOrder = async (req, res, next) => {
       .populate("client", "name phone email")
       .populate("reviewedBy", "name phone");
     const settings = await SystemSetting.findOne({ key: "default" });
-    const settlements =
-      req.user.role === "admin"
-        ? await Settlement.find({ order: order._id }).sort({ createdAt: -1 })
-        : [];
     const financialView = await buildFinancialViewForRole({
       role: req.user.role,
       order,
       payment,
       settings,
-      settlements,
     });
 
     return ApiResponse.success(res, "تفاصيل الدفع للطلب", {
@@ -483,22 +482,23 @@ exports.reviewPayment = async (req, res, next) => {
       return next(err);
     }
 
-    const shouldCreateSettlements = body.status === "confirmed";
+    const paymentConfirmed = body.status === "confirmed";
 
-    order.paymentStatus = shouldCreateSettlements ? "confirmed" : "rejected";
+    order.paymentStatus = paymentConfirmed ? "confirmed" : "rejected";
     order.statusHistory.push({
       status: order.status,
-      note: shouldCreateSettlements
+      note: paymentConfirmed
         ? "تم تأكيد الدفع من الإدارة"
         : "تم رفض الدفع من الإدارة",
       updatedBy: req.user.id,
     });
 
-    if (shouldCreateSettlements) {
+    if (paymentConfirmed) {
       const settings = await SystemSetting.findOne({ key: "default" });
       if (!order.financialSnapshot) {
         const financials = await calculateFinancials({
-          totalRepairCost: order.fees?.totalRepairCost || order.fees?.repair || 0,
+          totalRepairCost:
+            order.fees?.totalRepairCost || order.fees?.repair || 0,
           pickupFee: order.fees?.pickupFee || 0,
           deliveryFee: order.fees?.deliveryFee || order.fees?.delivery || 0,
           adminCommission: order.fees?.adminCommission || 0,
@@ -506,52 +506,25 @@ exports.reviewPayment = async (req, res, next) => {
         order.financialSnapshot = financials;
       }
 
-      // Use idempotent upserts to avoid duplicate settlements under retries/race
-      // Center settlement (stage: repair)
-      if (order.repairCenter) {
-        const center = await RepairCenter.findById(order.repairCenter);
-        const centerOwner = center?.owner
-          ? await User.findById(center.owner)
-          : null;
-        if (centerOwner) {
-          await Settlement.findOneAndUpdate(
-            { order: order._id, recipientType: "center", stage: "repair" },
-            {
-              $setOnInsert: {
-                order: order._id,
-                recipient: centerOwner._id,
-                recipientName: centerOwner.name,
-                recipientType: "center",
-                orderNumber: order.orderNumber,
-                amount: order.financialSnapshot?.centerAmount || 0,
-                stage: "repair",
-                status: "pending",
-                paymentStatus: "pending",
-              },
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true },
-          );
-        }
+      if (!order.earnings?.center?.recorded) {
+        order.earnings = order.earnings || {};
+        order.earnings.center = {
+          ...(order.earnings.center || {}),
+          recorded: true,
+          amount: order.financialSnapshot?.centerAmount || 0,
+          recordedAt: new Date(),
+        };
       }
 
-      // Admin commission settlement (stage: admin)
-      await Settlement.findOneAndUpdate(
-        { order: order._id, recipientType: "admin", stage: "admin" },
-        {
-          $setOnInsert: {
-            order: order._id,
-            recipient: req.user.id,
-            recipientName: req.user.name || "Admin",
-            recipientType: "admin",
-            orderNumber: order.orderNumber,
-            amount: order.financialSnapshot?.adminCommission || 0,
-            stage: "admin",
-            status: "pending",
-            paymentStatus: "pending",
-          },
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
-      );
+      if (!order.earnings?.admin?.recorded) {
+        order.earnings = order.earnings || {};
+        order.earnings.admin = {
+          ...(order.earnings.admin || {}),
+          recorded: true,
+          amount: order.financialSnapshot?.adminCommission || 0,
+          recordedAt: new Date(),
+        };
+      }
     }
 
     await order.save();

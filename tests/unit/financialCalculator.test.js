@@ -1,7 +1,7 @@
 const { calculateFinancials } = require("../../src/utils/financialCalculator");
 
 describe("financial calculator utility", () => {
-  it("calculates percentage commission and fixed delegate fee", async () => {
+  it("calculates percentage commission with a fixed delegate fee", async () => {
     const result = await calculateFinancials({
       repairAmount: 1000,
       inspectionFee: 100,
@@ -10,7 +10,6 @@ describe("financial calculator utility", () => {
         currency: "IQD",
         commissionType: "percentage",
         commissionValue: 10,
-        delegateFeeType: "fixed",
         delegateFeeValue: 50,
       },
     });
@@ -25,7 +24,7 @@ describe("financial calculator utility", () => {
     expect(result.currency).toBe("IQD");
   });
 
-  it("supports fixed commission and percentage delegate fee", async () => {
+  it("supports fixed commission with a fixed delegate fee", async () => {
     const result = await calculateFinancials({
       repairAmount: 800,
       inspectionFee: 0,
@@ -34,7 +33,6 @@ describe("financial calculator utility", () => {
         currency: "USD",
         commissionType: "fixed",
         commissionValue: 25,
-        delegateFeeType: "percentage",
         delegateFeeValue: 10,
       },
     });

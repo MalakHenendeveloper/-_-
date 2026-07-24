@@ -26,7 +26,6 @@ async function buildFinancialViewForRole({
   order,
   payment,
   settings = null,
-  settlements = [],
 } = {}) {
   // Extract fees from order or Settings
   const totalRepairCost = order?.fees?.totalRepairCost || 0;
@@ -101,12 +100,13 @@ async function buildFinancialViewForRole({
   }
 
   if (role === "delegate") {
-    const pickupSettlement = settlements.find((s) => s.stage === "pickup");
-    const deliverySettlement = settlements.find((s) => s.stage === "delivery");
-
     return {
-      pickupFee: pickupSettlement?.amount || 0,
-      deliveryFee: deliverySettlement?.amount || 0,
+      pickupFee: order?.earnings?.pickup?.recorded
+        ? order.earnings.pickup.amount || 0
+        : 0,
+      deliveryFee: order?.earnings?.delivery?.recorded
+        ? order.earnings.delivery.amount || 0
+        : 0,
       paymentStatus: order?.paymentStatus || "unpaid",
       currency: financials.currency,
       paymentDetails,
@@ -126,7 +126,6 @@ async function buildFinancialViewForRole({
       deliveryFee: financials.deliveryFeeAmount,
       adminFee: financials.adminCommissionAmount,
     },
-    settlements,
     paymentStatus: order?.paymentStatus || "unpaid",
     paymentDetails,
     currency: financials.currency,

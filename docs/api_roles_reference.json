@@ -548,7 +548,6 @@
         "paymentInstructions": "string?",
         "commissionType": "percentage|fixed?",
         "commissionValue": "number?",
-        "delegateFeeType": "percentage|fixed?",
         "delegateFeeValue": "number?",
         "currency": "string?",
         "isActive": "boolean?"

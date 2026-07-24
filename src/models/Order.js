@@ -149,6 +149,38 @@ const OrderSchema = new mongoose.Schema(
       centerAmount: { type: Number, default: 0 },
       currency: { type: String, default: "IQD" },
     },
+    earnings: {
+      pickup: {
+        recorded: { type: Boolean, default: false },
+        amount: { type: Number, default: 0 },
+        recordedAt: { type: Date, default: null },
+        delegate: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+      },
+      delivery: {
+        recorded: { type: Boolean, default: false },
+        amount: { type: Number, default: 0 },
+        recordedAt: { type: Date, default: null },
+        delegate: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+      },
+      center: {
+        recorded: { type: Boolean, default: false },
+        amount: { type: Number, default: 0 },
+        recordedAt: { type: Date, default: null },
+      },
+      admin: {
+        recorded: { type: Boolean, default: false },
+        amount: { type: Number, default: 0 },
+        recordedAt: { type: Date, default: null },
+      },
+    },
     paymentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Payment",
