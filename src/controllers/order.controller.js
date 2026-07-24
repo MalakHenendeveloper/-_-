@@ -160,8 +160,13 @@ exports.getOrderById = async (req, res, next) => {
       order,
       settings,
     });
+    const delegateFeeValue = Number(settings?.delegateFeeValue || 0);
 
-    return ApiResponse.success(res, "تفاصيل الطلب", { order, financialView });
+    return ApiResponse.success(res, "تفاصيل الطلب", {
+      order,
+      financialView,
+      delegateFeeValue,
+    });
   } catch (error) {
     next(error);
   }

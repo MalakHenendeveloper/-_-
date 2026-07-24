@@ -74,7 +74,9 @@ exports.getDashboard = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .limit(5);
 
-    const allOrders = await Order.find({}).lean();
+    const allOrders = await Order.find({})
+      .populate("repairCenter", "name")
+      .lean();
     const adminFinancialSummary = calculateRoleFinancialSummary({
       role: "admin",
       orders: allOrders,
