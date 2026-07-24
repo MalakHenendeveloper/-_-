@@ -80,6 +80,69 @@ exports.getDashboard = async (req, res, next) => {
       orders: allOrders,
     });
 
+    const centerBreakdown = allOrders.reduce((acc, order) => {
+      const centerId =
+        order?.repairCenter?._id || order?.repairCenter || "unknown";
+      const centerName = order?.repairCenter?.name || "غير معروف";
+      const revenue = Number(
+        order?.earnings?.center?.recorded
+          ? order?.earnings?.center?.amount || 0
+          : 0,
+      );
+
+      if (!centerId || !acc[centerId]) {
+        acc[centerId] = {
+          centerId: String(centerId),
+          centerName,
+          revenue: 0,
+          completedOrders: 0,
+        };
+      }
+
+      acc[centerId].revenue += revenue;
+      if (order?.earnings?.center?.recorded) {
+        acc[centerId].completedOrders += 1;
+      }
+
+      return acc;
+    }, {});
+
+    const delegateBreakdown = allOrders.reduce((acc, order) => {
+      const pickupDelegateId = order?.earnings?.pickup?.delegate || null;
+      const deliveryDelegateId = order?.earnings?.delivery?.delegate || null;
+
+      const addDelegateEntry = (delegateId, amount) => {
+        if (!delegateId) return;
+        const key = String(delegateId);
+        if (!acc[key]) {
+          acc[key] = {
+            delegateId: key,
+            name: "مندوب",
+            earnings: 0,
+            completedTrips: 0,
+          };
+        }
+        acc[key].earnings += Number(amount || 0);
+        acc[key].completedTrips += 1;
+      };
+
+      if (order?.earnings?.pickup?.recorded) {
+        addDelegateEntry(
+          pickupDelegateId,
+          order?.earnings?.pickup?.amount || 0,
+        );
+      }
+
+      if (order?.earnings?.delivery?.recorded) {
+        addDelegateEntry(
+          deliveryDelegateId,
+          order?.earnings?.delivery?.amount || 0,
+        );
+      }
+
+      return acc;
+    }, {});
+
     return ApiResponse.success(res, "لوحة إحصائيات الإدارة", {
       orders: {
         totalOrders: orders,
@@ -101,6 +164,8 @@ exports.getDashboard = async (req, res, next) => {
           orders: allOrders,
         }).totalEarnings,
         totalAdminCommission: adminFinancialSummary.totalAdminCommission,
+        centerBreakdown: Object.values(centerBreakdown),
+        delegateBreakdown: Object.values(delegateBreakdown),
       },
       users: {
         totalClients: clients,

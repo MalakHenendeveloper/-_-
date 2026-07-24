@@ -16,12 +16,7 @@ router.get("/users/:id", adminController.getUserById);
 router.put("/users/:id/status", adminController.updateUserStatus);
 router.delete("/users/:id", adminController.deleteUser);
 
-// Delegate management
-//router.get("/delegates", adminController.getDelegates);
-//router.post("/delegates", adminController.createDelegate);
-// router.put("/delegates/:id/status", adminController.updateDelegateStatus);
-// router.delete("/delegates/:id", adminController.deleteDelegate);
-// Delegate management
+
 router.get("/delegates", adminController.getDelegates);
 
 router.get("/delegate-applications", adminController.getDelegateApplications);
