@@ -12,15 +12,6 @@ const errorHandler = require("./middleware/errorHandler");
 const sanitize = require("./middleware/sanitize.middleware");
 const ApiResponse = require("./utils/apiResponse");
 
-// Connect MongoDB
-connectDB()
-  .then(() => {
-    console.log("MongoDB Connected From App");
-  })
-  .catch((err) => {
-    console.error("MongoDB Connection Failed:", err);
-  });
-
 const app = express();
 
 // Global middleware
