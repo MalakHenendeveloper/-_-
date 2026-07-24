@@ -53,7 +53,9 @@ const buildEarningHistory = (orders, delegateId) => {
       return trips;
     })
     .sort((first, second) => {
-      return new Date(second.completedAt || 0) - new Date(first.completedAt || 0);
+      return (
+        new Date(second.completedAt || 0) - new Date(first.completedAt || 0)
+      );
     })
     .slice(0, 10);
 };
@@ -169,15 +171,19 @@ exports.getTaskHistory = async (req, res, next) => {
 
 exports.getAvailablePickupOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find({
-      status: "pending",
-      $or: [{ delegate: null }, { delegate: { $exists: false } }],
-    })
-      .populate("client", "name phone")
-      .sort({ createdAt: -1 });
+    const [orders, delegateFeeValue] = await Promise.all([
+      Order.find({
+        status: "pending",
+        $or: [{ delegate: null }, { delegate: { $exists: false } }],
+      })
+        .populate("client", "name phone")
+        .sort({ createdAt: -1 }),
+      getDelegateTripFee(),
+    ]);
 
     return ApiResponse.success(res, "الطلبات المتاحة للاستلام", {
       orders,
+      delegateFeeValue,
     });
   } catch (error) {
     next(error);
@@ -226,16 +232,20 @@ exports.acceptPickupOrder = async (req, res, next) => {
 // GET /orders/available-delivery
 exports.getAvailableDeliveryOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find({
-      status: "repaired",
-      $or: [{ delegate: null }, { delegate: { $exists: false } }],
-    })
-      .populate("client", "name phone")
-      .populate("repairCenter", "name phone address")
-      .sort({ updatedAt: -1 });
+    const [orders, delegateFeeValue] = await Promise.all([
+      Order.find({
+        status: "repaired",
+        $or: [{ delegate: null }, { delegate: { $exists: false } }],
+      })
+        .populate("client", "name phone")
+        .populate("repairCenter", "name phone address")
+        .sort({ updatedAt: -1 }),
+      getDelegateTripFee(),
+    ]);
 
     return ApiResponse.success(res, "الطلبات الجاهزة للتوصيل", {
       orders,
+      delegateFeeValue,
     });
   } catch (error) {
     next(error);
@@ -563,7 +573,9 @@ exports.confirmDelivery = async (req, res, next) => {
     // client. Keep the amount quoted to the client when it already exists.
     if (!order.earnings?.delivery?.recorded) {
       const configuredDeliveryFee = await getDelegateTripFee();
-      const deliveryFee = Number(order.fees?.deliveryFee || configuredDeliveryFee);
+      const deliveryFee = Number(
+        order.fees?.deliveryFee || configuredDeliveryFee,
+      );
 
       order.fees.deliveryFee = deliveryFee;
       order.fees.delivery = deliveryFee;

@@ -21,6 +21,51 @@ async function calculateFinancials({
   };
 }
 
+async function buildFinancialSnapshot(order = {}) {
+  const financials = await calculateFinancials({
+    totalRepairCost:
+      order?.fees?.totalRepairCost || order?.fees?.repair || 0,
+    pickupFee: order?.fees?.pickupFee || 0,
+    deliveryFee: order?.fees?.deliveryFee || order?.fees?.delivery || 0,
+    adminCommission: order?.fees?.adminCommission || 0,
+  });
+
+  return {
+    repairAmount: financials.totalRepairCost,
+    inspectionFee: order?.fees?.inspection || 0,
+    deliveryFee: financials.deliveryFeeAmount,
+    clientTotal: financials.clientTotal,
+    adminCommission: financials.adminCommissionAmount,
+    delegateFee: financials.pickupFeeAmount,
+    centerAmount: financials.totalRepairCost,
+    currency: financials.currency,
+  };
+}
+
+function hasValidFinancialSnapshot(order = {}) {
+  const snapshot = order?.financialSnapshot;
+  if (!snapshot) return false;
+
+  const repairAmount = Number(
+    order?.fees?.totalRepairCost || order?.fees?.repair || 0,
+  );
+  const pickupFee = Number(order?.fees?.pickupFee || 0);
+  const deliveryFee = Number(
+    order?.fees?.deliveryFee || order?.fees?.delivery || 0,
+  );
+  const adminCommission = Number(order?.fees?.adminCommission || 0);
+  const clientTotal = repairAmount + pickupFee + deliveryFee + adminCommission;
+
+  return (
+    Number(snapshot.repairAmount) === repairAmount &&
+    Number(snapshot.centerAmount) === repairAmount &&
+    Number(snapshot.deliveryFee) === deliveryFee &&
+    Number(snapshot.delegateFee) === pickupFee &&
+    Number(snapshot.adminCommission) === adminCommission &&
+    Number(snapshot.clientTotal) === clientTotal
+  );
+}
+
 async function buildFinancialViewForRole({
   role,
   order,
@@ -134,5 +179,7 @@ async function buildFinancialViewForRole({
 
 module.exports = {
   calculateFinancials,
+  buildFinancialSnapshot,
+  hasValidFinancialSnapshot,
   buildFinancialViewForRole,
 };

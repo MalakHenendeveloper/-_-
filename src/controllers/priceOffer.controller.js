@@ -8,7 +8,8 @@ const Payment = require("../models/Payment");
 const SystemSetting = require("../models/SystemSetting");
 const User = require("../models/User");
 const {
-  calculateFinancials,
+  buildFinancialSnapshot,
+  hasValidFinancialSnapshot,
   buildFinancialViewForRole,
 } = require("../utils/financialCalculator");
 const { getDelegateTripFee } = require("../utils/delegateFees");
@@ -147,34 +148,10 @@ exports.approveOffer = async (req, res, next) => {
       updatedBy: req.user.id,
     });
 
-    if (!order.financialSnapshot) {
-      const settings = await SystemSetting.findOne({ key: "default" });
-      const totalRepairCost =
-        order.fees?.totalRepairCost || order.fees?.repair || 0;
-      const pickupFeeVal = order.fees?.pickupFee || 0;
-      const deliveryFeeVal =
-        order.fees?.deliveryFee || order.fees?.delivery || 0;
-      const adminCommissionVal = order.fees?.adminCommission || 0;
-
-      const financials = await calculateFinancials({
-        totalRepairCost,
-        pickupFee: pickupFeeVal,
-        deliveryFee: deliveryFeeVal,
-        adminCommission: adminCommissionVal,
-      });
-
-      // Normalize snapshot keys expected elsewhere in the codebase
-      order.financialSnapshot = {
-        repairAmount: financials.totalRepairCost,
-        inspectionFee: order.fees?.inspection || 0,
-        deliveryFee: financials.deliveryFeeAmount,
-        clientTotal: financials.clientTotal,
-        adminCommission: financials.adminCommissionAmount,
-        delegateFee: financials.pickupFeeAmount,
-        centerAmount: financials.totalRepairCost,
-        currency: financials.currency,
-      };
-    }
+    // The schema creates a zero-valued object by default, so always build the
+    // financial snapshot from the approved quotation instead of checking only
+    // whether the object exists.
+    order.financialSnapshot = await buildFinancialSnapshot(order);
 
     await order.save();
 
@@ -494,16 +471,9 @@ exports.reviewPayment = async (req, res, next) => {
     });
 
     if (paymentConfirmed) {
-      const settings = await SystemSetting.findOne({ key: "default" });
-      if (!order.financialSnapshot) {
-        const financials = await calculateFinancials({
-          totalRepairCost:
-            order.fees?.totalRepairCost || order.fees?.repair || 0,
-          pickupFee: order.fees?.pickupFee || 0,
-          deliveryFee: order.fees?.deliveryFee || order.fees?.delivery || 0,
-          adminCommission: order.fees?.adminCommission || 0,
-        });
-        order.financialSnapshot = financials;
+      // Defensive fallback for orders created before the snapshot was fixed.
+      if (!hasValidFinancialSnapshot(order)) {
+        order.financialSnapshot = await buildFinancialSnapshot(order);
       }
 
       if (!order.earnings?.center?.recorded) {

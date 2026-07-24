@@ -1,46 +1,67 @@
-const { calculateFinancials } = require("../../src/utils/financialCalculator");
+const {
+  calculateFinancials,
+  buildFinancialSnapshot,
+  hasValidFinancialSnapshot,
+} = require("../../src/utils/financialCalculator");
 
 describe("financial calculator utility", () => {
-  it("calculates percentage commission with a fixed delegate fee", async () => {
+  it("calculates the client total from approved order fees", async () => {
     const result = await calculateFinancials({
-      repairAmount: 1000,
-      inspectionFee: 100,
-      deliveryFee: 200,
-      settings: {
-        currency: "IQD",
-        commissionType: "percentage",
-        commissionValue: 10,
-        delegateFeeValue: 50,
-      },
+      totalRepairCost: 1000,
+      pickupFee: 500,
+      deliveryFee: 500,
+      adminCommission: 100,
     });
 
-    expect(result.repairAmount).toBe(1000);
-    expect(result.inspectionFee).toBe(100);
-    expect(result.deliveryFee).toBe(200);
-    expect(result.clientTotal).toBe(1300);
-    expect(result.adminCommission).toBe(130);
-    expect(result.delegateFee).toBe(50);
-    expect(result.centerAmount).toBe(1120);
-    expect(result.currency).toBe("IQD");
+    expect(result).toEqual({
+      totalRepairCost: 1000,
+      pickupFeeAmount: 500,
+      deliveryFeeAmount: 500,
+      adminCommissionAmount: 100,
+      clientTotal: 2100,
+      currency: "IQD",
+    });
   });
 
-  it("supports fixed commission with a fixed delegate fee", async () => {
-    const result = await calculateFinancials({
-      repairAmount: 800,
-      inspectionFee: 0,
-      deliveryFee: 100,
-      settings: {
-        currency: "USD",
-        commissionType: "fixed",
-        commissionValue: 25,
-        delegateFeeValue: 10,
+  it("builds a center and admin snapshot from the approved quotation", async () => {
+    const order = {
+      fees: {
+        inspection: 0,
+        totalRepairCost: 1000,
+        pickupFee: 500,
+        deliveryFee: 500,
+        adminCommission: 100,
       },
-    });
+    };
 
-    expect(result.clientTotal).toBe(900);
-    expect(result.adminCommission).toBe(25);
-    expect(result.delegateFee).toBe(10);
-    expect(result.centerAmount).toBe(865);
-    expect(result.currency).toBe("USD");
+    const snapshot = await buildFinancialSnapshot(order);
+
+    expect(snapshot.centerAmount).toBe(1000);
+    expect(snapshot.adminCommission).toBe(100);
+    expect(snapshot.clientTotal).toBe(2100);
+    expect(hasValidFinancialSnapshot({ ...order, financialSnapshot: snapshot })).toBe(
+      true,
+    );
+  });
+
+  it("rejects the zero-valued default snapshot when order fees are non-zero", () => {
+    expect(
+      hasValidFinancialSnapshot({
+        fees: {
+          totalRepairCost: 1000,
+          pickupFee: 500,
+          deliveryFee: 500,
+          adminCommission: 100,
+        },
+        financialSnapshot: {
+          repairAmount: 0,
+          centerAmount: 0,
+          deliveryFee: 0,
+          delegateFee: 0,
+          adminCommission: 0,
+          clientTotal: 0,
+        },
+      }),
+    ).toBe(false);
   });
 });
