@@ -26,6 +26,7 @@ describe("dashboard financial summary utility", () => {
     expect(result.completedDeliveryCount).toBe(1);
     expect(result.completedOrdersCount).toBe(2);
     expect(result.completedTasksCount).toBe(2);
+    expect(result.totalTripsCount).toBe(3);
   });
 
   it("credits both trips to one delegate when the same delegate completes them", () => {
@@ -46,6 +47,7 @@ describe("dashboard financial summary utility", () => {
     expect(result.totalEarnings).toBe(1000);
     expect(result.completedPickupCount).toBe(1);
     expect(result.completedDeliveryCount).toBe(1);
+    expect(result.totalTripsCount).toBe(2);
   });
 
   it("credits each trip only to the delegate who completed it", () => {
@@ -70,9 +72,11 @@ describe("dashboard financial summary utility", () => {
     expect(pickupDelegate.totalEarnings).toBe(500);
     expect(pickupDelegate.completedPickupCount).toBe(1);
     expect(pickupDelegate.completedDeliveryCount).toBe(0);
+    expect(pickupDelegate.totalTripsCount).toBe(1);
     expect(deliveryDelegate.totalEarnings).toBe(500);
     expect(deliveryDelegate.completedPickupCount).toBe(0);
     expect(deliveryDelegate.completedDeliveryCount).toBe(1);
+    expect(deliveryDelegate.totalTripsCount).toBe(1);
   });
 
   it("calculates center revenue from recorded center earnings", () => {

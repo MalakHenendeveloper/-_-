@@ -43,6 +43,15 @@ function calculateRoleFinancialSummary({
 
     return {
       totalEarnings,
+      totalTripsCount: normalizedOrders.reduce((count, order) => {
+        const pickupRecorded =
+          belongsToDelegate(order, "pickup") &&
+          Boolean(order?.earnings?.pickup?.recorded);
+        const deliveryRecorded =
+          belongsToDelegate(order, "delivery") &&
+          Boolean(order?.earnings?.delivery?.recorded);
+        return count + Number(pickupRecorded) + Number(deliveryRecorded);
+      }, 0),
       // Preferred name: this counts completed transport tasks, not repaired
       // orders. Keep completedOrdersCount for backward-compatible clients.
       completedTasksCount: normalizedOrders.filter((order) => {
@@ -118,6 +127,7 @@ function calculateRoleFinancialSummary({
 
   return {
     totalEarnings: 0,
+    totalTripsCount: 0,
     completedTasksCount: 0,
     completedOrdersCount: 0,
     currentAssignedOrdersCount: 0,

@@ -11,16 +11,52 @@ const {
 } = require("../utils/dashboardFinancials");
 const { getDelegateTripFee } = require("../utils/delegateFees");
 
-const buildRecentOrderPayload = (order) => ({
-  id: order._id,
-  _id: order._id,
-  orderId: order._id,
-  orderNumber: order.orderNumber,
-  clientName: order.client?.name || "",
-  status: order.status,
-  createdAt: order.createdAt,
-  repairCenterName: order.repairCenter?.name || null,
-});
+const buildEarningHistory = (orders, delegateId) => {
+  const isOwnedByDelegate = (earning) =>
+    String(earning?.delegate || "") === String(delegateId);
+
+  return orders
+    .flatMap((order) => {
+      const base = {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        clientName: order.client?.name || "",
+      };
+      const trips = [];
+
+      if (
+        order.earnings?.pickup?.recorded &&
+        isOwnedByDelegate(order.earnings.pickup)
+      ) {
+        trips.push({
+          ...base,
+          tripType: "pickup",
+          label: "العميل → مركز الصيانة",
+          amount: order.earnings.pickup.amount || 0,
+          completedAt: order.earnings.pickup.recordedAt,
+        });
+      }
+
+      if (
+        order.earnings?.delivery?.recorded &&
+        isOwnedByDelegate(order.earnings.delivery)
+      ) {
+        trips.push({
+          ...base,
+          tripType: "delivery",
+          label: "مركز الصيانة → العميل",
+          amount: order.earnings.delivery.amount || 0,
+          completedAt: order.earnings.delivery.recordedAt,
+        });
+      }
+
+      return trips;
+    })
+    .sort((first, second) => {
+      return new Date(second.completedAt || 0) - new Date(first.completedAt || 0);
+    })
+    .slice(0, 10);
+};
 
 // Helper: assert delegate owns this order
 async function getDelegateOrder(orderId, delegateId, next) {
@@ -76,13 +112,11 @@ exports.getDashboard = async (req, res, next) => {
     return ApiResponse.success(res, "ملخص لوحة مندوب الاستلام والتسليم", {
       summary: {
         totalEarnings: financialSummary.totalEarnings,
-        completedTasksCount: financialSummary.completedTasksCount,
-        completedOrdersCount: financialSummary.completedOrdersCount,
-        currentAssignedOrdersCount: financialSummary.currentAssignedOrdersCount,
-        completedPickupCount: financialSummary.completedPickupCount,
-        completedDeliveryCount: financialSummary.completedDeliveryCount,
+        totalTripsCount: financialSummary.totalTripsCount,
+        pickupTripsCount: financialSummary.completedPickupCount,
+        deliveryTripsCount: financialSummary.completedDeliveryCount,
       },
-      recentOrders: orders.map(buildRecentOrderPayload),
+      earningHistory: buildEarningHistory(orders, delegateId),
     });
   } catch (error) {
     next(error);
