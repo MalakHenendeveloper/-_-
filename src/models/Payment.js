@@ -35,11 +35,6 @@ const PaymentSchema = new mongoose.Schema(
       trim: true,
       required: [true, "رقم المحفظة أو الحساب المرسل منه مطلوب"],
     },
-    transferReference: {
-      type: String,
-      trim: true,
-      required: [true, "رقم التحويل مطلوب"],
-    },
     screenshot: {
       type: String,
       default: null,

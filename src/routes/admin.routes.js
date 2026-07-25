@@ -16,7 +16,6 @@ router.get("/users/:id", adminController.getUserById);
 router.put("/users/:id/status", adminController.updateUserStatus);
 router.delete("/users/:id", adminController.deleteUser);
 
-
 router.get("/delegates", adminController.getDelegates);
 
 router.get("/delegate-applications", adminController.getDelegateApplications);
@@ -68,5 +67,9 @@ router.get("/stats/delegates", adminController.getStatsDelegates);
 //payments
 router.get("/payments", adminController.getPayments);
 router.put("/payments/:paymentId/review", adminController.reviewPayment);
+router.put(
+  "/orders/:orderId/settlement",
+  adminController.updateOrderSettlement,
+);
 
 module.exports = router;

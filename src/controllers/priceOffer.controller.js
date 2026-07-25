@@ -320,7 +320,6 @@ exports.submitPayment = async (req, res, next) => {
         )
         .required(),
       senderWalletNumber: Joi.string().trim().required(),
-      transferReference: Joi.string().trim().required(),
       notes: Joi.string().trim().allow("").optional(),
     });
 
@@ -362,7 +361,6 @@ exports.submitPayment = async (req, res, next) => {
       amount: order.fees?.total || 0,
       paymentMethod: body.paymentMethod,
       senderWalletNumber: body.senderWalletNumber,
-      transferReference: body.transferReference,
       screenshot,
       notes: body.notes || null,
       status: "waiting_confirmation",

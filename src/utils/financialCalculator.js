@@ -91,7 +91,6 @@ async function buildFinancialViewForRole({
         amount: payment.amount,
         status: payment.status,
         senderWalletNumber: payment.senderWalletNumber,
-        transferReference: payment.transferReference,
         screenshot: payment.screenshot,
         notes: payment.notes,
       }

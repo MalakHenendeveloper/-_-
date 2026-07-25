@@ -703,6 +703,49 @@ exports.getPayments = async (req, res, next) => {
 exports.reviewPayment = async (req, res, next) => {
   return require("./priceOffer.controller").reviewPayment(req, res, next);
 };
+
+exports.updateOrderSettlement = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      party: Joi.string()
+        .valid("pickup", "delivery", "center", "admin")
+        .required(),
+      settled: Joi.boolean().required(),
+    });
+
+    const body = validate(schema, req.body);
+    const order = await Order.findById(req.params.orderId);
+
+    if (!order) {
+      const err = new Error("الطلب غير موجود");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    const partyKey = body.party;
+    const earnings = order.earnings || {};
+    const partyEarning = earnings[partyKey] || {};
+
+    const nextAmount = Number(partyEarning.amount || 0);
+
+    earnings[partyKey] = {
+      ...partyEarning,
+      recorded: Boolean(body.settled),
+      amount: nextAmount,
+      recordedAt: body.settled ? new Date() : null,
+    };
+
+    order.earnings = earnings;
+    await order.save();
+
+    return ApiResponse.success(res, "تم تحديث حالة التسوية بنجاح", {
+      order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /orders - View all orders with search/filter and pagination
 exports.getOrders = async (req, res, next) => {
   try {
