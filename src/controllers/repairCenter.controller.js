@@ -23,6 +23,31 @@ const buildRecentOrderPayload = (order) => ({
   repairCenterName: order.repairCenter?.name || null,
 });
 
+const buildCenterOrderPayload = (order) => ({
+  id: order._id,
+  _id: order._id,
+  orderId: order._id,
+  orderNumber: order.orderNumber,
+  status: order.status,
+  createdAt: order.createdAt,
+  updatedAt: order.updatedAt,
+  clientName: order.client?.name || "",
+  clientPhone: order.client?.phone || "",
+  clientEmail: order.client?.email || "",
+  deviceType: order.device?.type || "",
+  deviceBrand: order.device?.brand || "",
+  deviceModel: order.device?.model || "",
+  problemType: order.device?.problemType || "",
+  problemDescription: order.device?.problemDescription || "",
+  pickupAddress: order.pickupAddress || null,
+  assignedDelegateName: order.delegate?.name || "",
+  assignedDelegatePhone: order.delegate?.phone || "",
+  repairCenterName: order.repairCenter?.name || "",
+  pickupDelegateName: order.pickupDelegate?.name || "",
+  deliveryDelegateName: order.deliveryDelegate?.name || "",
+  paymentStatus: order.paymentStatus || "unpaid",
+});
+
 // GET / - Public - List active repair centers with pagination
 exports.getActiveCenters = async (req, res, next) => {
   try {
@@ -136,18 +161,29 @@ exports.getCenterOrders = async (req, res, next) => {
 
     const total = await Order.countDocuments({ repairCenter: center._id });
     const orders = await Order.find({ repairCenter: center._id })
-      .populate("client", "name phone")
+      .populate("client", "name phone email")
       .populate("delegate", "name phone")
+      .populate("pickupDelegate", "name phone")
+      .populate("deliveryDelegate", "name phone")
+      .populate("repairCenter", "name address phone")
       .skip(skip)
       .limit(limitNum)
       .sort({ createdAt: -1 });
 
-    return ApiResponse.success(res, "طلبات مركز الصيانة", { orders }, 200, {
-      total,
-      page: pageNum,
-      limit: limitNum,
-      pages: Math.ceil(total / limitNum),
-    });
+    const enrichedOrders = orders.map(buildCenterOrderPayload);
+
+    return ApiResponse.success(
+      res,
+      "طلبات مركز الصيانة",
+      { orders: enrichedOrders },
+      200,
+      {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    );
   } catch (error) {
     next(error);
   }
@@ -245,8 +281,10 @@ exports.getCenterOrderById = async (req, res, next) => {
       settings,
     });
 
+    const enrichedOrder = buildCenterOrderPayload(order);
+
     return ApiResponse.success(res, "تفاصيل الطلب الخاص بالمركز", {
-      order,
+      order: enrichedOrder,
       financialView,
     });
   } catch (error) {
