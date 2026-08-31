@@ -118,6 +118,7 @@ const delegateRoutes = require("./routes/delegate.routes");
 const inspectionRoutes = require("./routes/inspection.routes");
 const priceOfferRoutes = require("./routes/priceOffer.routes");
 const centerServiceRoutes = require("./routes/centerService.routes");
+const couponRoutes = require("./routes/coupon.routes");
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/centers", repairCenterRoutes);
@@ -127,6 +128,7 @@ app.use("/api/delegate", delegateRoutes);
 app.use("/api/inspection", inspectionRoutes);
 app.use("/api/price-offer", priceOfferRoutes);
 app.use("/api/center/services", centerServiceRoutes);
+app.use("/api/coupons", couponRoutes);
 //
 //
 app.get("/env-test", (req, res) => {

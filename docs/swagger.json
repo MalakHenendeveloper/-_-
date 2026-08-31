@@ -399,6 +399,14 @@
         "responses": { "200": { "description": "Coupon validity, discount, final amount, remaining uses and expiry" }, "400": { "description": "Inactive, expired, or exhausted coupon" }, "404": { "description": "Coupon not found" } }
       }
     },
+    "/api/coupons/available": {
+      "get": {
+        "tags": ["Client - Coupons"],
+        "summary": "List active, unexpired coupons the authenticated client can still use",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "Available coupons with remaining uses" }, "403": { "description": "Client role required" } }
+      }
+    },
     "/api/admin/coupons": {
       "post": {
         "tags": ["Admin"], "summary": "Create a five-day fixed coupon", "security": [{ "BearerAuth": [] }],
