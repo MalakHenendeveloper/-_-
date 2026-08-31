@@ -5,6 +5,10 @@ const SystemSetting = require("../models/SystemSetting");
 const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
 const { buildFinancialViewForRole } = require("../utils/financialCalculator");
+const mongoose = require("mongoose");
+const CouponUsage = require("../models/CouponUsage");
+const Coupon = require("../models/Coupon");
+const { getValidCoupon, calculateCouponDiscount } = require("../utils/coupon");
 
 // POST / - Create order (+ upload images)
 exports.createOrder = async (req, res, next) => {
@@ -26,6 +30,7 @@ exports.createOrder = async (req, res, next) => {
         }).optional(),
       }).required(),
       repairCenter: Joi.string().hex().length(24).optional(),
+      couponCode: Joi.string().trim().optional(),
     });
 
     let parsedBody = { ...req.body };
@@ -65,7 +70,20 @@ exports.createOrder = async (req, res, next) => {
       inspectionFee = center.inspectionFee || 0;
     }
 
-    const order = new Order({
+    const createOrderWithCoupon = async (session) => {
+      let couponData;
+      if (body.couponCode) {
+        const result = await getValidCoupon({ code: body.couponCode, userId: req.user.id, session });
+        couponData = {
+          id: result.coupon._id,
+          code: result.coupon.code,
+          discountType: "fixed",
+          discountValue: result.coupon.discountValue,
+          discountAmount: calculateCouponDiscount(result.coupon),
+        };
+      }
+
+      const order = new Order({
       client: req.user.id,
       device: deviceData,
       pickupAddress: body.pickupAddress,
@@ -77,9 +95,26 @@ exports.createOrder = async (req, res, next) => {
         total: inspectionFee,
       },
       status: "pending",
+      coupon: couponData,
     });
+      await order.save({ session });
 
-    await order.save();
+      if (couponData) {
+        const activeUses = await CouponUsage.countDocuments({ coupon: couponData.id, user: req.user.id, status: "active" }).session(session);
+        if (activeUses >= 3) { const error = new Error("Coupon usage limit reached"); error.statusCode = 400; throw error; }
+        // Force a write to the coupon document. Concurrent transactions then
+        // conflict and retry against the latest active-usage count.
+        await Coupon.updateOne({ _id: couponData.id }, { $inc: { usageVersion: 1 } }, { session });
+        await CouponUsage.create([{ coupon: couponData.id, user: req.user.id, order: order._id, usageNumber: activeUses + 1 }], { session });
+      }
+      return order;
+    };
+
+    let order;
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => { order = await createOrderWithCoupon(session); });
+    } finally { await session.endSession(); }
 
     return ApiResponse.success(
       res,
@@ -90,6 +125,22 @@ exports.createOrder = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+// POST /validate-coupon - validate a coupon before order creation
+exports.validateCoupon = async (req, res, next) => {
+  try {
+    const body = validate(Joi.object({ code: Joi.string().trim().required(), amount: Joi.number().required() }), req.body);
+    const { coupon, remainingUses } = await getValidCoupon({ code: body.code, userId: req.user.id });
+    const discountAmount = calculateCouponDiscount(coupon, body.amount);
+    return ApiResponse.success(res, "Coupon is valid", {
+      valid: true,
+      discountAmount,
+      finalAmount: Number(body.amount) - discountAmount,
+      remainingUses,
+      expiresAt: coupon.expiresAt,
+    });
+  } catch (error) { next(error); }
 };
 
 // GET / - Get client orders with pagination
@@ -205,7 +256,21 @@ exports.cancelOrder = async (req, res, next) => {
       updatedBy: req.user.id,
     });
 
-    await order.save();
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        if (order.paymentStatus === "unpaid" && order.coupon?.id) {
+          const usage = await CouponUsage.findOne({ coupon: order.coupon.id, user: order.client, order: order._id, status: "active" }).session(session);
+          if (usage) {
+            usage.status = "reversed";
+            usage.reversedAt = new Date();
+            await usage.save({ session });
+            await Coupon.updateOne({ _id: order.coupon.id }, { $inc: { usageVersion: 1 } }, { session });
+          }
+        }
+        await order.save({ session });
+      });
+    } finally { await session.endSession(); }
 
     return ApiResponse.success(res, "تم إلغاء الطلب بنجاح", { order });
   } catch (error) {

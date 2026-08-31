@@ -89,7 +89,8 @@ exports.createPriceOffer = async (req, res, next) => {
     order.fees.delivery = deliveryFee;
     order.fees.adminCommission = adminCommission;
     order.fees.total =
-      body.totalCost + pickupFee + deliveryFee + adminCommission;
+      body.totalCost + pickupFee + deliveryFee + adminCommission -
+      Number(order.coupon?.discountAmount || 0);
     order.status = "awaiting_approval";
     order.statusHistory.push({
       status: "awaiting_approval",

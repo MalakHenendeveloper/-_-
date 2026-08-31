@@ -139,9 +139,18 @@ const OrderSchema = new mongoose.Schema(
       enum: ["unpaid", "pending", "confirmed", "rejected"],
       default: "unpaid",
     },
+    coupon: {
+      id: { type: mongoose.Schema.Types.ObjectId, ref: "Coupon" },
+      code: { type: String },
+      discountType: { type: String, enum: ["fixed"] },
+      discountValue: { type: Number },
+      discountAmount: { type: Number },
+    },
     financialSnapshot: {
       repairAmount: { type: Number, default: 0 },
       inspectionFee: { type: Number, default: 0 },
+      subtotal: { type: Number, default: 0 },
+      discountAmount: { type: Number, default: 0 },
       deliveryFee: { type: Number, default: 0 },
       clientTotal: { type: Number, default: 0 },
       adminCommission: { type: Number, default: 0 },

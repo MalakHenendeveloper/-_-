@@ -340,7 +340,8 @@
                     },
                     "required": ["address", "city"]
                   },
-                  "repairCenter": { "type": "string" }
+                  "repairCenter": { "type": "string" },
+                  "couponCode": { "type": "string", "description": "Active fixed-amount coupon code" }
                 },
                 "required": ["device", "pickupAddress"]
               }
@@ -388,6 +389,28 @@
           }
         }
       }
+    },
+    "/api/orders/validate-coupon": {
+      "post": {
+        "tags": ["Client - Orders"],
+        "summary": "Validate a coupon before creating an order",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["code", "amount"], "properties": { "code": { "type": "string", "example": "WELCOME20" }, "amount": { "type": "number", "example": 50000 } } } } } },
+        "responses": { "200": { "description": "Coupon validity, discount, final amount, remaining uses and expiry" }, "400": { "description": "Inactive, expired, or exhausted coupon" }, "404": { "description": "Coupon not found" } }
+      }
+    },
+    "/api/admin/coupons": {
+      "post": {
+        "tags": ["Admin"], "summary": "Create a five-day fixed coupon", "security": [{ "BearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["code", "discountValue"], "properties": { "code": { "type": "string" }, "discountValue": { "type": "number", "minimum": 0.01 } } } } } },
+        "responses": { "201": { "description": "Coupon created" } }
+      },
+      "get": { "tags": ["Admin"], "summary": "List coupons with active usage counts", "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Coupons retrieved" } } }
+    },
+    "/api/admin/coupons/{id}": {
+      "get": { "tags": ["Admin"], "summary": "Get coupon", "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Coupon retrieved" } } },
+      "put": { "tags": ["Admin"], "summary": "Update discount value or active state; code is immutable", "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Coupon updated" } } },
+      "delete": { "tags": ["Admin"], "summary": "Disable a coupon", "security": [{ "BearerAuth": [] }], "responses": { "200": { "description": "Coupon disabled" } } }
     },
     "/api/orders/{orderId}": {
       "get": {

@@ -8,6 +8,13 @@
   },
   "item": [
     {
+      "name": "Coupons",
+      "item": [
+        { "name": "Validate Coupon", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"code\": \"WELCOME20\",\n  \"amount\": 50000\n}" }, "url": { "raw": "{{baseUrl}}/api/orders/validate-coupon", "host": ["{{baseUrl}}"], "path": ["api", "orders", "validate-coupon"] } } },
+        { "name": "Create Coupon (Admin)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"code\": \"WELCOME20\",\n  \"discountValue\": 20000\n}" }, "url": { "raw": "{{baseUrl}}/api/admin/coupons", "host": ["{{baseUrl}}"], "path": ["api", "admin", "coupons"] } } }
+      ]
+    },
+    {
       "name": "Authentication",
       "item": [
         {

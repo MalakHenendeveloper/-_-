@@ -18,6 +18,8 @@ describe("financial calculator utility", () => {
       pickupFeeAmount: 500,
       deliveryFeeAmount: 500,
       adminCommissionAmount: 100,
+      subtotal: 2100,
+      discountAmount: 0,
       clientTotal: 2100,
       currency: "IQD",
     });
@@ -63,5 +65,18 @@ describe("financial calculator utility", () => {
         },
       }),
     ).toBe(false);
+  });
+
+  it("applies the order coupon only to the client total", async () => {
+    const order = {
+      fees: { totalRepairCost: 1000, pickupFee: 500, deliveryFee: 500, adminCommission: 100 },
+      coupon: { discountAmount: 300 },
+    };
+    const snapshot = await buildFinancialSnapshot(order);
+    expect(snapshot.subtotal).toBe(2100);
+    expect(snapshot.discountAmount).toBe(300);
+    expect(snapshot.clientTotal).toBe(1800);
+    expect(snapshot.centerAmount).toBe(1000);
+    expect(hasValidFinancialSnapshot({ ...order, financialSnapshot: snapshot })).toBe(true);
   });
 });

@@ -9,10 +9,66 @@ const validate = require("../utils/validator");
 const ApiResponse = require("../utils/apiResponse");
 const CenterService = require("../models/CenterService");
 const Payment = require("../models/Payment");
+const Coupon = require("../models/Coupon");
+const CouponUsage = require("../models/CouponUsage");
 const { buildFinancialViewForRole } = require("../utils/financialCalculator");
 const {
   calculateRoleFinancialSummary,
 } = require("../utils/dashboardFinancials");
+
+exports.createCoupon = async (req, res, next) => {
+  try {
+    const body = validate(Joi.object({
+      code: Joi.string().trim().min(1).max(100).required(),
+      discountValue: Joi.number().greater(0).required(),
+    }), req.body);
+    const coupon = await Coupon.create({ ...body, createdBy: req.user.id });
+    return ApiResponse.success(res, "Coupon created", { coupon }, 201);
+  } catch (error) { next(error); }
+};
+
+exports.getCoupons = async (req, res, next) => {
+  try {
+    const coupons = await Coupon.find().sort({ createdAt: -1 }).lean();
+    const usageCounts = await CouponUsage.aggregate([
+      { $match: { status: "active" } },
+      { $group: { _id: "$coupon", usageCount: { $sum: 1 } } },
+    ]);
+    const counts = new Map(usageCounts.map((item) => [String(item._id), item.usageCount]));
+    return ApiResponse.success(res, "Coupons retrieved", {
+      coupons: coupons.map((coupon) => ({ ...coupon, usageCount: counts.get(String(coupon._id)) || 0 })),
+    });
+  } catch (error) { next(error); }
+};
+
+exports.getCouponById = async (req, res, next) => {
+  try {
+    const coupon = await Coupon.findById(req.params.id).lean();
+    if (!coupon) { const error = new Error("Coupon not found"); error.statusCode = 404; throw error; }
+    const usageCount = await CouponUsage.countDocuments({ coupon: coupon._id, status: "active" });
+    return ApiResponse.success(res, "Coupon retrieved", { coupon: { ...coupon, usageCount } });
+  } catch (error) { next(error); }
+};
+
+exports.updateCoupon = async (req, res, next) => {
+  try {
+    const body = validate(Joi.object({
+      discountValue: Joi.number().greater(0).optional(),
+      isActive: Joi.boolean().optional(),
+    }).min(1), req.body);
+    const coupon = await Coupon.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
+    if (!coupon) { const error = new Error("Coupon not found"); error.statusCode = 404; throw error; }
+    return ApiResponse.success(res, "Coupon updated", { coupon });
+  } catch (error) { next(error); }
+};
+
+exports.deleteCoupon = async (req, res, next) => {
+  try {
+    const coupon = await Coupon.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    if (!coupon) { const error = new Error("Coupon not found"); error.statusCode = 404; throw error; }
+    return ApiResponse.success(res, "Coupon disabled", { coupon });
+  } catch (error) { next(error); }
+};
 
 const buildRecentOrderPayload = (order) => ({
   id: order._id,

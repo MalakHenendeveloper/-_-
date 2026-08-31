@@ -10,6 +10,12 @@ router.use(authorize("admin"));
 
 router.get("/dashboard", adminController.getDashboard);
 
+router.post("/coupons", adminController.createCoupon);
+router.get("/coupons", adminController.getCoupons);
+router.get("/coupons/:id", adminController.getCouponById);
+router.put("/coupons/:id", adminController.updateCoupon);
+router.delete("/coupons/:id", adminController.deleteCoupon);
+
 // Users management
 router.get("/users", adminController.getUsers);
 router.get("/users/:id", adminController.getUserById);

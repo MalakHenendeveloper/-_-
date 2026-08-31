@@ -31,6 +31,7 @@ router.put(
 router.put("/:id/delivery-completed", orderController.deliveryCompleted);
 
 // Order routes
+router.post("/validate-coupon", orderController.validateCoupon);
 router.post("/", upload.array("images", 5), orderController.createOrder);
 router.get("/", orderController.getClientOrders);
 router.get("/:id/status-history", orderController.getOrderStatusHistory);
