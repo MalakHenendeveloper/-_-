@@ -23,8 +23,7 @@ async function calculateFinancials({
 
 async function buildFinancialSnapshot(order = {}) {
   const financials = await calculateFinancials({
-    totalRepairCost:
-      order?.fees?.totalRepairCost || order?.fees?.repair || 0,
+    totalRepairCost: order?.fees?.totalRepairCost || order?.fees?.repair || 0,
     pickupFee: order?.fees?.pickupFee || 0,
     deliveryFee: order?.fees?.deliveryFee || order?.fees?.delivery || 0,
     adminCommission: order?.fees?.adminCommission || 0,
