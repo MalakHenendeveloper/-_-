@@ -18,13 +18,18 @@ const {
 
 exports.createCoupon = async (req, res, next) => {
   try {
-    const body = validate(Joi.object({
-      code: Joi.string().trim().min(1).max(100).required(),
-      discountValue: Joi.number().greater(0).required(),
-    }), req.body);
+    const body = validate(
+      Joi.object({
+        code: Joi.string().trim().min(1).max(100).required(),
+        discountValue: Joi.number().greater(0).required(),
+      }),
+      req.body,
+    );
     const coupon = await Coupon.create({ ...body, createdBy: req.user.id });
     return ApiResponse.success(res, "Coupon created", { coupon }, 201);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 };
 
 exports.getCoupons = async (req, res, next) => {
@@ -34,40 +39,80 @@ exports.getCoupons = async (req, res, next) => {
       { $match: { status: "active" } },
       { $group: { _id: "$coupon", usageCount: { $sum: 1 } } },
     ]);
-    const counts = new Map(usageCounts.map((item) => [String(item._id), item.usageCount]));
+    const counts = new Map(
+      usageCounts.map((item) => [String(item._id), item.usageCount]),
+    );
     return ApiResponse.success(res, "Coupons retrieved", {
-      coupons: coupons.map((coupon) => ({ ...coupon, usageCount: counts.get(String(coupon._id)) || 0 })),
+      coupons: coupons.map((coupon) => ({
+        ...coupon,
+        usageCount: counts.get(String(coupon._id)) || 0,
+      })),
     });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 };
 
 exports.getCouponById = async (req, res, next) => {
   try {
     const coupon = await Coupon.findById(req.params.id).lean();
-    if (!coupon) { const error = new Error("Coupon not found"); error.statusCode = 404; throw error; }
-    const usageCount = await CouponUsage.countDocuments({ coupon: coupon._id, status: "active" });
-    return ApiResponse.success(res, "Coupon retrieved", { coupon: { ...coupon, usageCount } });
-  } catch (error) { next(error); }
+    if (!coupon) {
+      const error = new Error("Coupon not found");
+      error.statusCode = 404;
+      throw error;
+    }
+    const usageCount = await CouponUsage.countDocuments({
+      coupon: coupon._id,
+      status: "active",
+    });
+    return ApiResponse.success(res, "Coupon retrieved", {
+      coupon: { ...coupon, usageCount },
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 exports.updateCoupon = async (req, res, next) => {
   try {
-    const body = validate(Joi.object({
-      discountValue: Joi.number().greater(0).optional(),
-      isActive: Joi.boolean().optional(),
-    }).min(1), req.body);
-    const coupon = await Coupon.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
-    if (!coupon) { const error = new Error("Coupon not found"); error.statusCode = 404; throw error; }
+    const body = validate(
+      Joi.object({
+        discountValue: Joi.number().greater(0).optional(),
+        isActive: Joi.boolean().optional(),
+      }).min(1),
+      req.body,
+    );
+    const coupon = await Coupon.findByIdAndUpdate(req.params.id, body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!coupon) {
+      const error = new Error("Coupon not found");
+      error.statusCode = 404;
+      throw error;
+    }
     return ApiResponse.success(res, "Coupon updated", { coupon });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 };
 
 exports.deleteCoupon = async (req, res, next) => {
   try {
-    const coupon = await Coupon.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
-    if (!coupon) { const error = new Error("Coupon not found"); error.statusCode = 404; throw error; }
+    const coupon = await Coupon.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true },
+    );
+    if (!coupon) {
+      const error = new Error("Coupon not found");
+      error.statusCode = 404;
+      throw error;
+    }
     return ApiResponse.success(res, "Coupon disabled", { coupon });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 };
 
 const buildRecentOrderPayload = (order) => ({
@@ -608,6 +653,141 @@ exports.getPaymentSettings = async (req, res, next) => {
   }
 };
 
+// GET /settlements - Settlement summary for repair centers and delegates
+exports.getSettlements = async (req, res, next) => {
+  try {
+    const [centers, delegates, orders] = await Promise.all([
+      RepairCenter.find({ isDeleted: { $ne: true } })
+        .select("name phone")
+        .lean(),
+      User.find({ role: "delegate", isDeleted: { $ne: true } })
+        .select("name phone")
+        .lean(),
+      Order.find({})
+        .select(
+          "orderNumber repairCenter earnings.pickup earnings.delivery earnings.center",
+        )
+        .lean(),
+    ]);
+
+    const centerSummaries = centers.map((center) => ({
+      centerId: String(center._id),
+      centerName: center.name,
+      phone: center.phone || "",
+      totalOrders: 0,
+      totalDue: 0,
+      totalSettled: 0,
+      remaining: 0,
+      orders: [],
+    }));
+    const delegateSummaries = delegates.map((delegate) => ({
+      delegateId: String(delegate._id),
+      name: delegate.name,
+      phone: delegate.phone || "",
+      pickupDue: 0,
+      deliveryDue: 0,
+      totalDue: 0,
+      totalSettled: 0,
+      remaining: 0,
+      pickupTrips: 0,
+      deliveryTrips: 0,
+      trips: [],
+    }));
+
+    const centersById = new Map(
+      centerSummaries.map((center) => [center.centerId, center]),
+    );
+    const delegatesById = new Map(
+      delegateSummaries.map((delegate) => [delegate.delegateId, delegate]),
+    );
+
+    const addEarning = (summary, earning, details) => {
+      if (!earning?.recorded) return;
+
+      const amount = Number(earning.amount || 0);
+      const settledAmount = earning.settled ? amount : 0;
+      summary.totalDue += amount;
+      summary.totalSettled += settledAmount;
+      summary.remaining = summary.totalDue - summary.totalSettled;
+      summary.orders.push({
+        ...details,
+        amount,
+        settled: Boolean(earning.settled),
+        settledAt: earning.settledAt || null,
+        recordedAt: earning.recordedAt || null,
+      });
+    };
+
+    orders.forEach((order) => {
+      const orderDetails = {
+        orderId: String(order._id),
+        orderNumber: order.orderNumber || "",
+      };
+      const centerId = String(order.repairCenter || "");
+      const center = centersById.get(centerId);
+
+      if (center && order.earnings?.center?.recorded) {
+        center.totalOrders += 1;
+        addEarning(center, order.earnings.center, orderDetails);
+      }
+
+      ["pickup", "delivery"].forEach((tripType) => {
+        const earning = order.earnings?.[tripType];
+        const delegateId = String(earning?.delegate || "");
+        const delegate = delegatesById.get(delegateId);
+        if (!delegate || !earning?.recorded) return;
+
+        const amount = Number(earning.amount || 0);
+        const settledAmount = earning.settled ? amount : 0;
+        delegate[`${tripType}Due`] += amount;
+        delegate.totalDue += amount;
+        delegate.totalSettled += settledAmount;
+        delegate.remaining = delegate.totalDue - delegate.totalSettled;
+        delegate[`${tripType}Trips`] += 1;
+        delegate.trips.push({
+          ...orderDetails,
+          tripType,
+          amount,
+          settled: Boolean(earning.settled),
+          settledAt: earning.settledAt || null,
+          recordedAt: earning.recordedAt || null,
+        });
+      });
+    });
+
+    const summary = {
+      centersTotalDue: centerSummaries.reduce(
+        (total, center) => total + center.totalDue,
+        0,
+      ),
+      centersTotalSettled: centerSummaries.reduce(
+        (total, center) => total + center.totalSettled,
+        0,
+      ),
+      delegatesTotalDue: delegateSummaries.reduce(
+        (total, delegate) => total + delegate.totalDue,
+        0,
+      ),
+      delegatesTotalSettled: delegateSummaries.reduce(
+        (total, delegate) => total + delegate.totalSettled,
+        0,
+      ),
+    };
+    summary.centersRemaining =
+      summary.centersTotalDue - summary.centersTotalSettled;
+    summary.delegatesRemaining =
+      summary.delegatesTotalDue - summary.delegatesTotalSettled;
+
+    return ApiResponse.success(res, "تقرير التسويات", {
+      summary,
+      centers: centerSummaries,
+      delegates: delegateSummaries,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // PUT /payment-settings - Update admin payment settings
 exports.updatePaymentSettings = async (req, res, next) => {
   try {
@@ -792,9 +972,10 @@ exports.updateOrderSettlement = async (req, res, next) => {
 
     earnings[partyKey] = {
       ...partyEarning,
-      recorded: Boolean(body.settled),
+      recorded: Boolean(partyEarning.recorded),
       amount: nextAmount,
-      recordedAt: body.settled ? new Date() : null,
+      settled: Boolean(body.settled),
+      settledAt: body.settled ? new Date() : null,
     };
 
     order.earnings = earnings;

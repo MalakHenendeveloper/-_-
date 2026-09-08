@@ -65,6 +65,9 @@ router.put("/payment-settings", adminController.updatePaymentSettings);
 router.get("/financial-settings", adminController.getFinancialSettings);
 router.put("/financial-settings", adminController.updateFinancialSettings);
 
+// Settlements
+router.get("/settlements", adminController.getSettlements);
+
 // Stats
 router.get("/stats/overview", adminController.getStatsOverview);
 router.get("/stats/revenue", adminController.getStatsRevenue);

@@ -162,6 +162,8 @@ const OrderSchema = new mongoose.Schema(
       pickup: {
         recorded: { type: Boolean, default: false },
         amount: { type: Number, default: 0 },
+        settled: { type: Boolean, default: false },
+        settledAt: { type: Date, default: null },
         recordedAt: { type: Date, default: null },
         delegate: {
           type: mongoose.Schema.Types.ObjectId,
@@ -172,6 +174,8 @@ const OrderSchema = new mongoose.Schema(
       delivery: {
         recorded: { type: Boolean, default: false },
         amount: { type: Number, default: 0 },
+        settled: { type: Boolean, default: false },
+        settledAt: { type: Date, default: null },
         recordedAt: { type: Date, default: null },
         delegate: {
           type: mongoose.Schema.Types.ObjectId,
@@ -182,11 +186,15 @@ const OrderSchema = new mongoose.Schema(
       center: {
         recorded: { type: Boolean, default: false },
         amount: { type: Number, default: 0 },
+        settled: { type: Boolean, default: false },
+        settledAt: { type: Date, default: null },
         recordedAt: { type: Date, default: null },
       },
       admin: {
         recorded: { type: Boolean, default: false },
         amount: { type: Number, default: 0 },
+        settled: { type: Boolean, default: false },
+        settledAt: { type: Date, default: null },
         recordedAt: { type: Date, default: null },
       },
     },
