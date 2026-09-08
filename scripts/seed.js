@@ -51,23 +51,23 @@ const seedDatabase = async () => {
 
     // Create admin user
     const adminUser = await User.create({
-      name: "Admin User",
-      phone: "966501234567",
+        name: " حسن زاهر",
+      phone: "9647824774219",
       email: "admin@mobilemaintenance.com",
-      password: "Admin@123456",
+      password: "2002001",
       role: "admin",
       isVerified: true,
       isActive: true,
     });
     console.log("✅ Admin user created");
 
-    // Create 5 client users
+    // Create 3 client users
     const clients = await User.create([
       {
-        name: "أحمد محمد",
-        phone: "966501234568",
+        name: "  زاهر",
+        phone: "964782477421",
         email: "client1@example.com",
-        password: "Client@123456",
+        password: "2002001",
         role: "client",
         isVerified: true,
         isActive: true,
@@ -98,24 +98,7 @@ const seedDatabase = async () => {
         isVerified: true,
         isActive: true,
       },
-      {
-        name: "ليلى أحمد",
-        phone: "966501234591",
-        email: "client4@example.com",
-        password: "Client@123456",
-        role: "client",
-        isVerified: true,
-        isActive: true,
-      },
-      {
-        name: "عمر إبراهيم",
-        phone: "966501234592",
-        email: "client5@example.com",
-        password: "Client@123456",
-        role: "client",
-        isVerified: true,
-        isActive: true,
-      },
+ 
     ]);
     console.log("✅ 5 Client users created");
 
@@ -123,31 +106,31 @@ const seedDatabase = async () => {
     const delegates = await User.create([
       {
         name: "محمد إبراهيم",
-        phone: "966501234570",
+        phone: "9647824775219",
         email: "delegate1@example.com",
         password: "Delegate@123456",
         role: "delegate",
         isVerified: true,
         isActive: true,
       },
-      {
-        name: "سارة أحمد",
-        phone: "966501234571",
-        email: "delegate2@example.com",
-        password: "Delegate@123456",
-        role: "delegate",
-        isVerified: true,
-        isActive: true,
-      },
-      {
-        name: "علي محمد",
-        phone: "966501234593",
-        email: "delegate3@example.com",
-        password: "Delegate@123456",
-        role: "delegate",
-        isVerified: true,
-        isActive: true,
-      },
+      // {
+      //   name: "سارة أحمد",
+      //   phone: "966501234571",
+      //   email: "delegate2@example.com",
+      //   password: "Delegate@123456",
+      //   role: "delegate",
+      //   isVerified: true,
+      //   isActive: true,
+      // },
+      // {
+      //   name: "علي محمد",
+      //   phone: "966501234593",
+      //   email: "delegate3@example.com",
+      //   password: "Delegate@123456",
+      //   role: "delegate",
+      //   isVerified: true,
+      //   isActive: true,
+      // },
     ]);
     console.log("✅ 3 Delegate users created");
 
@@ -162,24 +145,24 @@ const seedDatabase = async () => {
         isVerified: true,
         isActive: true,
       },
-      {
-        name: "مركز الإصلاح الثاني",
-        phone: "966501234573",
-        email: "center2@example.com",
-        password: "Center@123456",
-        role: "center",
-        isVerified: true,
-        isActive: true,
-      },
-      {
-        name: "مركز الإصلاح الثالث",
-        phone: "966501234594",
-        email: "center3@example.com",
-        password: "Center@123456",
-        role: "center",
-        isVerified: true,
-        isActive: true,
-      },
+      // {
+      //   name: "مركز الإصلاح الثاني",
+      //   phone: "966501234573",
+      //   email: "center2@example.com",
+      //   password: "Center@123456",
+      //   role: "center",
+      //   isVerified: true,
+      //   isActive: true,
+      // },
+      // {
+      //   name: "مركز الإصلاح الثالث",
+      //   phone: "966501234594",
+      //   email: "center3@example.com",
+      //   password: "Center@123456",
+      //   role: "center",
+      //   isVerified: true,
+      //   isActive: true,
+      // },
     ]);
     console.log("✅ 3 Center owner users created");
 

@@ -612,7 +612,7 @@ exports.getPaymentSettings = async (req, res, next) => {
 exports.updatePaymentSettings = async (req, res, next) => {
   try {
     const schema = Joi.object({
-      walletOwnerName: Joi.string().trim().required(),
+      walletOwnerName: Joi.string().trim().allow("").optional(),
       walletNumbers: Joi.object()
         .pattern(
           Joi.string().valid(
@@ -623,7 +623,7 @@ exports.updatePaymentSettings = async (req, res, next) => {
             "asia_pay",
             "mastercard",
           ),
-          Joi.string().trim(),
+          Joi.string().trim().allow(""),
         )
         .optional(),
       activePaymentMethods: Joi.array()
@@ -639,7 +639,7 @@ exports.updatePaymentSettings = async (req, res, next) => {
         )
         .min(1)
         .required(),
-      paymentInstructions: Joi.string().trim().required(),
+      paymentInstructions: Joi.string().trim().allow("").optional(),
     });
 
     const body = validate(schema, req.body);
@@ -650,10 +650,16 @@ exports.updatePaymentSettings = async (req, res, next) => {
       settings = new SystemSetting({ key: "default" });
     }
 
-    settings.walletOwnerName = body.walletOwnerName;
-    settings.walletNumbers = body.walletNumbers || settings.walletNumbers || {};
+    if (Object.prototype.hasOwnProperty.call(body, "walletOwnerName")) {
+      settings.walletOwnerName = body.walletOwnerName;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, "walletNumbers")) {
+      settings.walletNumbers = body.walletNumbers;
+    }
     settings.activePaymentMethods = body.activePaymentMethods;
-    settings.paymentInstructions = body.paymentInstructions;
+    if (Object.prototype.hasOwnProperty.call(body, "paymentInstructions")) {
+      settings.paymentInstructions = body.paymentInstructions;
+    }
     settings.updatedBy = req.user?._id || null;
     settings.updatedAt = new Date();
 
