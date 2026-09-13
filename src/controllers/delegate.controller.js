@@ -10,6 +10,41 @@ const {
   calculateRoleFinancialSummary,
 } = require("../utils/dashboardFinancials");
 const { getDelegateTripFee } = require("../utils/delegateFees");
+const PushToken = require("../models/PushToken");
+
+exports.registerPushToken = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      token: Joi.string().trim().min(20).max(4096).required(),
+    });
+    const { token } = validate(schema, req.body);
+
+    await PushToken.findOneAndUpdate(
+      { token },
+      { user: req.user.id, token, platform: "android" },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    return ApiResponse.success(res, "تم تسجيل جهاز الإشعارات بنجاح");
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.removePushToken = async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      token: Joi.string().trim().min(20).max(4096).required(),
+    });
+    const { token } = validate(schema, req.body);
+
+    await PushToken.deleteOne({ user: req.user.id, token });
+
+    return ApiResponse.success(res, "تم إلغاء تسجيل جهاز الإشعارات بنجاح");
+  } catch (error) {
+    next(error);
+  }
+};
 
 const buildEarningHistory = (orders, delegateId) => {
   const isOwnedByDelegate = (earning) =>

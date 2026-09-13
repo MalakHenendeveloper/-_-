@@ -9,6 +9,9 @@ const mongoose = require("mongoose");
 const CouponUsage = require("../models/CouponUsage");
 const Coupon = require("../models/Coupon");
 const { getValidCoupon, calculateCouponDiscount } = require("../utils/coupon");
+const {
+  notifyDelegatesAboutNewOrder,
+} = require("../services/pushNotification.service");
 
 // POST / - Create order (+ upload images)
 exports.createOrder = async (req, res, next) => {
@@ -115,6 +118,8 @@ exports.createOrder = async (req, res, next) => {
     try {
       await session.withTransaction(async () => { order = await createOrderWithCoupon(session); });
     } finally { await session.endSession(); }
+
+    await notifyDelegatesAboutNewOrder(order);
 
     return ApiResponse.success(
       res,

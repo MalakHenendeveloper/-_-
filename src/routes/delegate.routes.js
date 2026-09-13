@@ -8,6 +8,9 @@ const upload = require("../middleware/upload.middleware");
 router.use(protect);
 router.use(authorize("delegate", "admin"));
 
+router.post("/push-tokens", delegateController.registerPushToken);
+router.delete("/push-tokens", delegateController.removePushToken);
+
 router.get("/dashboard", delegateController.getDashboard);
 router.get("/tasks", delegateController.getTasks);
 router.get("/tasks/history", delegateController.getTaskHistory);
