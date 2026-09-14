@@ -3,12 +3,26 @@ const router = express.Router();
 const repairCenterController = require("../controllers/repairCenter.controller");
 const inspectionController = require("../controllers/inspection.controller");
 const priceOfferController = require("../controllers/priceOffer.controller");
+const delegateController = require("../controllers/delegate.controller");
 const protect = require("../middleware/auth.middleware");
 const authorize = require("../middleware/role.middleware");
 const upload = require("../middleware/upload.middleware");
 
 // Public routes
 router.get("/", repairCenterController.getActiveCenters);
+
+router.post(
+  "/push-tokens",
+  protect,
+  authorize("center", "admin"),
+  delegateController.registerPushToken,
+);
+router.delete(
+  "/push-tokens",
+  protect,
+  authorize("center", "admin"),
+  delegateController.removePushToken,
+);
 
 // Authenticated Center-only dashboard routes
 router.get(

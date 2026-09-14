@@ -1,12 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/admin.controller");
+const delegateController = require("../controllers/delegate.controller");
 const protect = require("../middleware/auth.middleware");
 const authorize = require("../middleware/role.middleware");
 const upload = require("../middleware/upload.middleware");
 // All admin routes require authentication and admin role
 router.use(protect);
 router.use(authorize("admin"));
+
+router.post("/push-tokens", delegateController.registerPushToken);
+router.delete("/push-tokens", delegateController.removePushToken);
 
 router.get("/dashboard", adminController.getDashboard);
 

@@ -1,12 +1,13 @@
 const admin = require("firebase-admin");
 const PushToken = require("../models/PushToken");
 const User = require("../models/User");
+const RepairCenter = require("../models/RepairCenter");
 
 const firebaseIsConfigured = () =>
   Boolean(
     process.env.FIREBASE_PROJECT_ID &&
-      process.env.FIREBASE_CLIENT_EMAIL &&
-      process.env.FIREBASE_PRIVATE_KEY,
+    process.env.FIREBASE_CLIENT_EMAIL &&
+    process.env.FIREBASE_PRIVATE_KEY,
   );
 
 const getMessaging = () => {
@@ -35,43 +36,35 @@ const chunk = (items, size) => {
   return result;
 };
 
-const notifyDelegatesAboutNewOrder = async (order) => {
-  try {
-    const messaging = getMessaging();
-    if (!messaging) {
-      console.warn("Firebase push notification credentials are not configured.");
-      return;
-    }
+const getTokensForUsers = async (userIds) => {
+  if (!userIds.length) {
+    return [];
+  }
 
-    const delegates = await User.find({
-      role: "delegate",
-      isActive: true,
-      isDeleted: { $ne: true },
-    }).select("_id");
+  const registrations = await PushToken.find({
+    user: { $in: userIds },
+  }).select("token");
 
-    const delegateIds = delegates.map((delegate) => delegate._id);
-    const registrations = await PushToken.find({
-      user: { $in: delegateIds },
-    }).select("token");
-    const tokens = registrations.map((registration) => registration.token);
+  return registrations
+    .map((registration) => registration.token)
+    .filter(Boolean);
+};
 
-    if (!tokens.length) {
-      return;
-    }
+const sendMulticast = async (messaging, tokens, title, body, data) => {
+  if (!tokens.length) {
+    return [];
+  }
 
-    const invalidTokens = [];
-    for (const tokenBatch of chunk(tokens, 500)) {
+  const invalidTokens = [];
+  for (const tokenBatch of chunk(tokens, 500)) {
+    try {
       const response = await messaging.sendEachForMulticast({
         tokens: tokenBatch,
         notification: {
-          title: "طلب جديد",
-          body: "يوجد طلب جديد متاح للاستلام",
+          title,
+          body,
         },
-        data: {
-          type: "new_order",
-          orderId: String(order._id),
-          orderNumber: String(order.orderNumber || ""),
-        },
+        data,
         android: {
           priority: "high",
         },
@@ -88,15 +81,141 @@ const notifyDelegatesAboutNewOrder = async (order) => {
           invalidTokens.push(tokenBatch[index]);
         }
       });
+    } catch (error) {
+      console.error("Failed to send multicast push notification batch:", error);
+    }
+  }
+
+  if (invalidTokens.length) {
+    await PushToken.deleteMany({ token: { $in: invalidTokens } });
+  }
+};
+
+const notifyDelegatesAboutNewOrder = async (order) => {
+  try {
+    const messaging = getMessaging();
+    if (!messaging) {
+      console.warn(
+        "Firebase push notification credentials are not configured.",
+      );
+      return;
     }
 
-    if (invalidTokens.length) {
-      await PushToken.deleteMany({ token: { $in: invalidTokens } });
+    const delegates = await User.find({
+      role: "delegate",
+      isActive: true,
+      isDeleted: { $ne: true },
+    }).select("_id");
+
+    const delegateIds = delegates.map((delegate) => delegate._id);
+    const tokens = await getTokensForUsers(delegateIds);
+
+    if (!tokens.length) {
+      return;
     }
+
+    await sendMulticast(
+      messaging,
+      tokens,
+      "طلب جديد",
+      "يوجد طلب جديد يحتاج إلى استلامه.",
+      {
+        type: "new_order",
+        orderId: String(order._id),
+        orderNumber: String(order.orderNumber || ""),
+      },
+    );
   } catch (error) {
-    // A notification failure must never roll back an already-created order.
     console.error("Failed to notify delegates about a new order:", error);
   }
 };
 
-module.exports = { notifyDelegatesAboutNewOrder };
+const notifyAdminsAboutNewOrder = async (order) => {
+  try {
+    const messaging = getMessaging();
+    if (!messaging) {
+      console.warn(
+        "Firebase push notification credentials are not configured.",
+      );
+      return;
+    }
+
+    const admins = await User.find({
+      role: "admin",
+      isActive: true,
+      isDeleted: { $ne: true },
+    }).select("_id");
+
+    const adminIds = admins.map((adminUser) => adminUser._id);
+    const tokens = await getTokensForUsers(adminIds);
+
+    if (!tokens.length) {
+      return;
+    }
+
+    await sendMulticast(
+      messaging,
+      tokens,
+      "طلب جديد",
+      `تم إنشاء طلب جديد رقم ${order.orderNumber || order._id}`,
+      {
+        type: "new_order_admin",
+        orderId: String(order._id),
+        orderNumber: String(order.orderNumber || ""),
+      },
+    );
+  } catch (error) {
+    console.error("Failed to notify admins about a new order:", error);
+  }
+};
+
+const notifyCenterOwnerAboutNewOrder = async (order) => {
+  try {
+    if (!order?.repairCenter) {
+      return;
+    }
+
+    const messaging = getMessaging();
+    if (!messaging) {
+      console.warn(
+        "Firebase push notification credentials are not configured.",
+      );
+      return;
+    }
+
+    const center = await RepairCenter.findOne({
+      _id: order.repairCenter,
+      isDeleted: { $ne: true },
+    }).select("owner");
+
+    if (!center?.owner) {
+      return;
+    }
+
+    const tokens = await getTokensForUsers([center.owner]);
+
+    if (!tokens.length) {
+      return;
+    }
+
+    await sendMulticast(
+      messaging,
+      tokens,
+      "طلب جديد",
+      "تم إنشاء طلب جديد داخل مركزك.",
+      {
+        type: "new_order_center",
+        orderId: String(order._id),
+        orderNumber: String(order.orderNumber || ""),
+      },
+    );
+  } catch (error) {
+    console.error("Failed to notify center owner about a new order:", error);
+  }
+};
+
+module.exports = {
+  notifyDelegatesAboutNewOrder,
+  notifyAdminsAboutNewOrder,
+  notifyCenterOwnerAboutNewOrder,
+};

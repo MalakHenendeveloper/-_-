@@ -11,6 +11,8 @@ const Coupon = require("../models/Coupon");
 const { getValidCoupon, calculateCouponDiscount } = require("../utils/coupon");
 const {
   notifyDelegatesAboutNewOrder,
+  notifyAdminsAboutNewOrder,
+  notifyCenterOwnerAboutNewOrder,
 } = require("../services/pushNotification.service");
 
 // POST / - Create order (+ upload images)
@@ -76,7 +78,11 @@ exports.createOrder = async (req, res, next) => {
     const createOrderWithCoupon = async (session) => {
       let couponData;
       if (body.couponCode) {
-        const result = await getValidCoupon({ code: body.couponCode, userId: req.user.id, session });
+        const result = await getValidCoupon({
+          code: body.couponCode,
+          userId: req.user.id,
+          session,
+        });
         couponData = {
           id: result.coupon._id,
           code: result.coupon.code,
@@ -87,28 +93,50 @@ exports.createOrder = async (req, res, next) => {
       }
 
       const order = new Order({
-      client: req.user.id,
-      device: deviceData,
-      pickupAddress: body.pickupAddress,
-      repairCenter: body.repairCenter || undefined,
-      fees: {
-        inspection: inspectionFee,
-        delivery: 0,
-        repair: 0,
-        total: inspectionFee,
-      },
-      status: "pending",
-      coupon: couponData,
-    });
+        client: req.user.id,
+        device: deviceData,
+        pickupAddress: body.pickupAddress,
+        repairCenter: body.repairCenter || undefined,
+        fees: {
+          inspection: inspectionFee,
+          delivery: 0,
+          repair: 0,
+          total: inspectionFee,
+        },
+        status: "pending",
+        coupon: couponData,
+      });
       await order.save({ session });
 
       if (couponData) {
-        const activeUses = await CouponUsage.countDocuments({ coupon: couponData.id, user: req.user.id, status: "active" }).session(session);
-        if (activeUses >= 3) { const error = new Error("Coupon usage limit reached"); error.statusCode = 400; throw error; }
+        const activeUses = await CouponUsage.countDocuments({
+          coupon: couponData.id,
+          user: req.user.id,
+          status: "active",
+        }).session(session);
+        if (activeUses >= 3) {
+          const error = new Error("Coupon usage limit reached");
+          error.statusCode = 400;
+          throw error;
+        }
         // Force a write to the coupon document. Concurrent transactions then
         // conflict and retry against the latest active-usage count.
-        await Coupon.updateOne({ _id: couponData.id }, { $inc: { usageVersion: 1 } }, { session });
-        await CouponUsage.create([{ coupon: couponData.id, user: req.user.id, order: order._id, usageNumber: activeUses + 1 }], { session });
+        await Coupon.updateOne(
+          { _id: couponData.id },
+          { $inc: { usageVersion: 1 } },
+          { session },
+        );
+        await CouponUsage.create(
+          [
+            {
+              coupon: couponData.id,
+              user: req.user.id,
+              order: order._id,
+              usageNumber: activeUses + 1,
+            },
+          ],
+          { session },
+        );
       }
       return order;
     };
@@ -116,10 +144,18 @@ exports.createOrder = async (req, res, next) => {
     let order;
     const session = await mongoose.startSession();
     try {
-      await session.withTransaction(async () => { order = await createOrderWithCoupon(session); });
-    } finally { await session.endSession(); }
+      await session.withTransaction(async () => {
+        order = await createOrderWithCoupon(session);
+      });
+    } finally {
+      await session.endSession();
+    }
 
-    await notifyDelegatesAboutNewOrder(order);
+    await Promise.all([
+      notifyDelegatesAboutNewOrder(order),
+      notifyAdminsAboutNewOrder(order),
+      notifyCenterOwnerAboutNewOrder(order),
+    ]);
 
     return ApiResponse.success(
       res,
@@ -135,8 +171,17 @@ exports.createOrder = async (req, res, next) => {
 // POST /validate-coupon - validate a coupon before order creation
 exports.validateCoupon = async (req, res, next) => {
   try {
-    const body = validate(Joi.object({ code: Joi.string().trim().required(), amount: Joi.number().required() }), req.body);
-    const { coupon, remainingUses } = await getValidCoupon({ code: body.code, userId: req.user.id });
+    const body = validate(
+      Joi.object({
+        code: Joi.string().trim().required(),
+        amount: Joi.number().required(),
+      }),
+      req.body,
+    );
+    const { coupon, remainingUses } = await getValidCoupon({
+      code: body.code,
+      userId: req.user.id,
+    });
     const discountAmount = calculateCouponDiscount(coupon, body.amount);
     return ApiResponse.success(res, "Coupon is valid", {
       valid: true,
@@ -145,7 +190,9 @@ exports.validateCoupon = async (req, res, next) => {
       remainingUses,
       expiresAt: coupon.expiresAt,
     });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 };
 
 // GET / - Get client orders with pagination
@@ -265,17 +312,28 @@ exports.cancelOrder = async (req, res, next) => {
     try {
       await session.withTransaction(async () => {
         if (order.paymentStatus === "unpaid" && order.coupon?.id) {
-          const usage = await CouponUsage.findOne({ coupon: order.coupon.id, user: order.client, order: order._id, status: "active" }).session(session);
+          const usage = await CouponUsage.findOne({
+            coupon: order.coupon.id,
+            user: order.client,
+            order: order._id,
+            status: "active",
+          }).session(session);
           if (usage) {
             usage.status = "reversed";
             usage.reversedAt = new Date();
             await usage.save({ session });
-            await Coupon.updateOne({ _id: order.coupon.id }, { $inc: { usageVersion: 1 } }, { session });
+            await Coupon.updateOne(
+              { _id: order.coupon.id },
+              { $inc: { usageVersion: 1 } },
+              { session },
+            );
           }
         }
         await order.save({ session });
       });
-    } finally { await session.endSession(); }
+    } finally {
+      await session.endSession();
+    }
 
     return ApiResponse.success(res, "تم إلغاء الطلب بنجاح", { order });
   } catch (error) {
