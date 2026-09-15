@@ -11,6 +11,10 @@ const { buildFinancialViewForRole } = require("../utils/financialCalculator");
 const {
   calculateRoleFinancialSummary,
 } = require("../utils/dashboardFinancials");
+const {
+  notifyDelegatesAboutRepairedOrder,
+  notifyClientAboutRepairedOrder,
+} = require("../services/pushNotification.service");
 
 const buildRecentOrderPayload = (order) => ({
   id: order._id,
@@ -403,6 +407,13 @@ exports.updateOrderStatus = async (req, res, next) => {
     });
 
     await order.save();
+
+    if (body.status === "repaired") {
+      await Promise.all([
+        notifyDelegatesAboutRepairedOrder(order),
+        notifyClientAboutRepairedOrder(order),
+      ]);
+    }
 
     return ApiResponse.success(res, "تم تحديث حالة الطلب بنجاح", { order });
   } catch (error) {

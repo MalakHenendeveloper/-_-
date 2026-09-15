@@ -9,5 +9,11 @@ describe("push notification service", () => {
     expect(pushNotificationService).toHaveProperty(
       "notifyCenterOwnerAboutNewOrder",
     );
+    expect(pushNotificationService).toHaveProperty(
+      "notifyDelegatesAboutRepairedOrder",
+    );
+    expect(pushNotificationService).toHaveProperty(
+      "notifyClientAboutRepairedOrder",
+    );
   });
 });

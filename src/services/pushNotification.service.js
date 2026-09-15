@@ -214,8 +214,77 @@ const notifyCenterOwnerAboutNewOrder = async (order) => {
   }
 };
 
+const notifyDelegatesAboutRepairedOrder = async (order) => {
+  try {
+    const messaging = getMessaging();
+    if (!messaging) {
+      console.warn(
+        "Firebase push notification credentials are not configured.",
+      );
+      return;
+    }
+
+    const delegates = await User.find({
+      role: "delegate",
+      isActive: true,
+      isDeleted: { $ne: true },
+    }).select("_id");
+    const tokens = await getTokensForUsers(
+      delegates.map((delegate) => delegate._id),
+    );
+
+    await sendMulticast(
+      messaging,
+      tokens,
+      "تم إصلاح الجهاز",
+      "تم الانتهاء من إصلاح جهاز. افتح الطلبات الجاهزة للتوصيل لاستلام المهمة.",
+      {
+        type: "order_repaired",
+        orderId: String(order._id),
+        orderNumber: String(order.orderNumber || ""),
+      },
+    );
+  } catch (error) {
+    console.error("Failed to notify delegates about repaired order:", error);
+  }
+};
+
+const notifyClientAboutRepairedOrder = async (order) => {
+  try {
+    if (!order?.client) {
+      return;
+    }
+
+    const messaging = getMessaging();
+    if (!messaging) {
+      console.warn(
+        "Firebase push notification credentials are not configured.",
+      );
+      return;
+    }
+
+    const tokens = await getTokensForUsers([order.client]);
+
+    await sendMulticast(
+      messaging,
+      tokens,
+      "تم إصلاح جهازك",
+      "تم الانتهاء من إصلاح هاتفك وسيتم تجهيزه للتوصيل.",
+      {
+        type: "order_repaired_client",
+        orderId: String(order._id),
+        orderNumber: String(order.orderNumber || ""),
+      },
+    );
+  } catch (error) {
+    console.error("Failed to notify client about repaired order:", error);
+  }
+};
+
 module.exports = {
   notifyDelegatesAboutNewOrder,
   notifyAdminsAboutNewOrder,
   notifyCenterOwnerAboutNewOrder,
+  notifyDelegatesAboutRepairedOrder,
+  notifyClientAboutRepairedOrder,
 };
