@@ -11,19 +11,6 @@ const upload = require("../middleware/upload.middleware");
 // Public routes
 router.get("/", repairCenterController.getActiveCenters);
 
-router.post(
-  "/push-tokens",
-  protect,
-  authorize("center", "admin"),
-  delegateController.registerPushToken,
-);
-router.delete(
-  "/push-tokens",
-  protect,
-  authorize("center", "admin"),
-  delegateController.removePushToken,
-);
-
 // Authenticated Center-only dashboard routes
 router.get(
   "/dashboard",

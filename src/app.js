@@ -64,7 +64,6 @@ app.get("/health", (req, res) => {
   });
 });
 
-
 app.get("/db-test", async (req, res) => {
   try {
     await connectDB();
@@ -119,8 +118,10 @@ const inspectionRoutes = require("./routes/inspection.routes");
 const priceOfferRoutes = require("./routes/priceOffer.routes");
 const centerServiceRoutes = require("./routes/centerService.routes");
 const couponRoutes = require("./routes/coupon.routes");
+const pushTokenRoutes = require("./routes/pushToken.routes");
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/push-tokens", pushTokenRoutes);
 app.use("/api/centers", repairCenterRoutes);
 app.use("/api/orders", sensitiveOperationsLimiter, orderRoutes);
 app.use("/api/admin", sensitiveOperationsLimiter, adminRoutes);

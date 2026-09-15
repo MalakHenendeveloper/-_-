@@ -9,9 +9,6 @@ const upload = require("../middleware/upload.middleware");
 router.use(protect);
 router.use(authorize("admin"));
 
-router.post("/push-tokens", delegateController.registerPushToken);
-router.delete("/push-tokens", delegateController.removePushToken);
-
 router.get("/dashboard", adminController.getDashboard);
 
 router.post("/coupons", adminController.createCoupon);
